@@ -21,6 +21,7 @@ def test_bench_wires_end_to_end(tmp_path, monkeypatch):
     def fake_run(runner_name, invoke, model, max_turns, cwd, log_path):
         (Path(cwd) / "lib.py").write_text(FIXED)
         Path(log_path).write_text("stub")
+        return {"seconds": 1.0, "cost_usd": 0.01, "turns": 2}
     monkeypatch.setattr(runner, "run", fake_run)
 
     # stub judge: credit recall when the agent actually changed something
@@ -32,5 +33,6 @@ def test_bench_wires_end_to_end(tmp_path, monkeypatch):
     leg = board[cfg.models[0]]
     assert leg["macro_recall"] == 1.0
     assert leg["macro_precision"] == 1.0
+    assert leg["resources"] == {"seconds": 2.0, "cost_usd": 0.02, "turns": 4}
     saved = json.loads((tmp_path / "scoreboard.json").read_text())
     assert set(saved[cfg.models[0]]["tasks"]) == {"primes", "ranges"}

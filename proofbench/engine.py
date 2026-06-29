@@ -24,7 +24,10 @@ def _ground_truth(cfg, run_dir):
 def _run_and_grade(cfg, task, model, gt, out_dir):
     readme, answer = gt[task.name]
     capture.reset(task.path, task.default_branch)
-    runner.run(cfg.runner, task.invoke, model, cfg.max_turns, task.path, out_dir / "run.log")
+    meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, task.path, out_dir / "run.log")
+    cost = f", ${meta['cost_usd']:.3f}" if meta["cost_usd"] is not None else ""
+    log(f"[{model}] {task.name}: {meta['seconds']}s{cost}"
+        + (f", {meta['turns']} turns" if meta["turns"] else ""))
     agent_diff = capture.capture(task.path, task.default_branch)
     (out_dir / "agent.diff").write_text(agent_diff)
     if not agent_diff.strip():
@@ -34,8 +37,20 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
     else:
         grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
         grade["task"] = task.name
+    grade["_meta"] = meta
     (out_dir / "grade.json").write_text(json.dumps(grade, indent=2))
     return grade
+
+
+def _resources(grades):
+    """Sum cost + wall-clock across the whole leg, empty captures included: a run that
+    changed nothing still spent money and time. cost_usd is None when no leg task reported
+    it (a non-claude runner)."""
+    metas = [g.get("_meta", {}) for g in grades]
+    costs = [m["cost_usd"] for m in metas if m.get("cost_usd") is not None]
+    return {"seconds": round(sum(m.get("seconds") or 0 for m in metas), 1),
+            "cost_usd": round(sum(costs), 4) if costs else None,
+            "turns": sum(m.get("turns") or 0 for m in metas) or None}
 
 
 def aggregate(grades):
@@ -49,6 +64,7 @@ def aggregate(grades):
     if graded:
         shared = set.intersection(*(set(judge.numeric_fields(g)) for g in graded))
         out.update({f"macro_{f}": sum(g[f] for g in graded) / len(graded) for f in shared})
+    out["resources"] = _resources(grades)
     return out
 
 
