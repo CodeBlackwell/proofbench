@@ -22,7 +22,7 @@ judge: ../../prompts/judge.md
 synth: ../../prompts/synth.md
 
 corpus:
-  # your bug-fix repos, each with a broken default branch and a fixed answer branch.
+  # your bug-fix repos, each with a broken default branch and a fixed solution branch.
   # see ../../CORPUS.md for how to pick non-leaky, discriminating tasks.
   - name: my-bug-repo
     path: /path/to/my-bug-repo

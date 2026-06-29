@@ -77,14 +77,14 @@ the harness comparing two numbers, never the model's own claim of success.
 
 - **Runner** (`runner:`): `claude` is built in. Any other value is an executable invoked as
   `<runner> <invoke> <model>`, so you can drive aider, codex, or a custom agent.
-- **Capture**: the git-diff default resets a repo to its broken branch and snapshots what the
+- **Capture**: the git-diff default resets a repo to its default branch and snapshots what the
   agent changed, excluding dependency and cache trees so they never pollute or balloon the
   judge prompt.
 
 ## Bring your own corpus
 
 The bundled corpus is two MIT toy repos for the demo. Point `corpus:` at your own repos
-(each with a broken default branch and a fixed answer branch). See [CORPUS.md](CORPUS.md) for
+(each with a broken default branch and a fixed solution branch). See [CORPUS.md](CORPUS.md) for
 how to curate tasks that actually discriminate and do not leak their answers to the judge.
 
 ## License

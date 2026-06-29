@@ -10,16 +10,16 @@ gates are exit codes the script reads, not model claims.
 ## Objective
 
 Measure how well the `crg-debug` skill finds and fixes planted bugs across a set of
-debugging-interview repos, grade its fixes against each repo's published answer branch,
+debugging-interview repos, grade its fixes against each repo's published gold branch,
 and use the gap to auto-improve the skill (closed loop). Run the same harness with three
 different driver models to see whether the methodology, not just the model, carries the
 result.
 
 ## Method (what we did)
 
-* **Targets:** 5 debugging-interview repos, each with a ground-truth answer branch.
+* **Targets:** 5 debugging-interview repos, each with a ground-truth gold branch.
 
-  | Repo | Default | Answer | Bug flavor | Answer diff size |
+  | Repo | Default | Gold | Bug flavor | Gold diff size |
   |------|---------|--------|-----------|------------------|
   | debugging-challenge | master | working | ML correctness (reuse, softmax, reshape, double scaling) | 210 lines |
   | BugFix | main | solution | inverted/swapped logic (Python + C) | 420 lines |

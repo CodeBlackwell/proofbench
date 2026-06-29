@@ -1,10 +1,19 @@
-# Real corpus config: 3 easy repos run through crg-debug on the haiku leg.
+# Real corpus config: 3 easy repos + 2 hard benchmark-derived cases, run through crg-debug.
 # Fetch first:  bash corpora/fetch.sh
 # Then:         proofbench run --config corpora/proofbench.yaml
 #
 # The 3 Tier-1 hard cases (cpython-timsort, cpython-asyncio-cond, sudo-baron-samedit)
 # are `pending` in manifest.yaml — add them here once hosted or reconstructed.
 # To self-improve a skill, add `subject:` + `synth:` and set `models` to a weak leg.
+#
+# The 2 hard cases below are single instances reconstructed from published benchmarks, each
+# materialized as a buggy->fixed git pair (branches `buggy` and `fixed`):
+#   - pdb-multi-shortest-substring: PDB-Multi task 3692_41 (Precise Debugging Benchmark,
+#     arXiv 2604.17338). 3 atomic bugs composed into one KMP/LPS string-matching algorithm.
+#     Complete ground truth by construction; scores edit-precision + bug-recall.
+#   - repodebug-gvl-tracing: RepoDebug (EMNLP Findings 2025) C `wrong_return` logic bug
+#     injected into a real Ruby native extension (ivoanjo/gvl-tracing); upstream = fixed ref.
+# Both repos are built locally under repos/ (gitignored) — see corpora/build_hard.py to rebuild.
 runner: claude
 models: [haiku]
 judge_model: opus
@@ -25,3 +34,5 @@ corpus:
   - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working }
   - { name: ph2-raccoon-saloon-debugging-challenge, path: repos/ph2-raccoon-saloon-debugging-challenge, invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: main,   answer_branch: solution }
   - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution }
+  - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }

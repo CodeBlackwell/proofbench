@@ -21,7 +21,7 @@ that *sounds* like a methodology. The only honest way to know is to plant bugs y
 answers to, run the skill, and grade what it changed against the known fix.
 
 So that is what I built: an eval over five debugging-interview repos, each with a ground-truth
-answer branch. Grade each fix with an LLM judge that compares the agent's diff to the reference
+gold branch. Grade each fix with an LLM judge that compares the agent's diff to the reference
 diff and reports recall (did it fix the planted bugs) and precision (did it avoid breaking things).
 Then run the exact same harness on three driver models, opus and sonnet and haiku, to answer the
 question that actually matters: does the *method* carry the result, or just the model?
