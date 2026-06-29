@@ -1,0 +1,9 @@
+__pycache__/
+*.egg-info/
+dist/
+build/
+runs/
+examples/sample-corpus/repos/
+.venv/
+.pytest_cache/
+uv.lock

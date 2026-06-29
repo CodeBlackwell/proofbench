@@ -1,0 +1,27 @@
+# Demo config. Build the corpus first:  bash examples/sample-corpus/build.sh
+# Then:                                  proofbench run --demo
+#
+# Pure-eval mode: no `subject` / `synth`, so only `run` is available. To try the
+# self-improving loop, point `subject` at a skill file and uncomment `synth`.
+runner: claude
+models: [haiku]            # single weak leg keeps the demo cheap; add sonnet/opus to sweep
+judge_model: opus         # held constant — never let the driver grade its own homework
+objective: macro_recall
+concurrency: 2
+max_turns: 120
+
+judge: ../prompts/judge.md
+# subject: ~/.claude/skills/crg-debug/SKILL.md
+# synth:   ../prompts/synth.md
+
+corpus:
+  - name: primes
+    path: sample-corpus/repos/primes
+    invoke: "Find and fix the bug in this repository."
+    default_branch: buggy
+    answer_branch: fixed
+  - name: ranges
+    path: sample-corpus/repos/ranges
+    invoke: "Find and fix the bug in this repository."
+    default_branch: buggy
+    answer_branch: fixed

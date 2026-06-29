@@ -1,0 +1,23 @@
+[project]
+name = "proofbench"
+version = "0.1.0"
+description = "Config-driven eval harness that grades and self-improves headless agent skills against ground-truth corpora"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "LeChristopher Blackwell" }]
+keywords = ["eval", "llm", "agent", "benchmark", "prompt-optimization", "claude"]
+dependencies = ["PyYAML>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/CodeBlackwell/proofbench"
+
+[project.scripts]
+proofbench = "proofbench.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["proofbench"]
