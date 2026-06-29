@@ -25,18 +25,31 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
     readme, answer = gt[task.name]
     capture.reset(task.path, task.default_branch)
     runner.run(cfg.runner, task.invoke, model, cfg.max_turns, task.path, out_dir / "run.log")
-    agent_diff = capture.capture(task.path)
+    agent_diff = capture.capture(task.path, task.default_branch)
     (out_dir / "agent.diff").write_text(agent_diff)
-    grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
-    grade["task"] = task.name
+    if not agent_diff.strip():
+        log(f"\033[33m[{model}] {task.name}: EMPTY diff — agent changed nothing; "
+            f"excluded from macro (check the invoke if this is unexpected)\033[0m")
+        grade = {"task": task.name, "empty_capture": True}
+    else:
+        grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
+        grade["task"] = task.name
     (out_dir / "grade.json").write_text(json.dumps(grade, indent=2))
     return grade
 
 
 def aggregate(grades):
-    shared = set.intersection(*(set(judge.numeric_fields(g)) for g in grades))
-    macro = {f"macro_{f}": sum(g[f] for g in grades) / len(grades) for f in shared}
-    return {**macro, "tasks": {g["task"]: judge.numeric_fields(g) for g in grades}}
+    """Macro-average the shared numeric fields. Empty-capture tasks carry no metrics: they
+    are excluded from the average and listed separately so they never become a silent zero."""
+    graded = [g for g in grades if not g.get("empty_capture")]
+    out = {"tasks": {g["task"]: judge.numeric_fields(g) for g in grades}}
+    empty = [g["task"] for g in grades if g.get("empty_capture")]
+    if empty:
+        out["empty_captures"] = empty
+    if graded:
+        shared = set.intersection(*(set(judge.numeric_fields(g)) for g in graded))
+        out.update({f"macro_{f}": sum(g[f] for g in graded) / len(graded) for f in shared})
+    return out
 
 
 def bench(cfg, run_dir, models):

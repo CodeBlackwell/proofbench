@@ -39,3 +39,7 @@ def main():
     except HarnessError as err:
         print(f"\033[31m[proofbench] {err}\033[0m", file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -26,6 +26,9 @@ def ground_truth(repo, default_branch, answer_branch):
     return _git(repo, "diff", f"{default_branch}..{answer_branch}").stdout
 
 
-def capture(repo):
+def capture(repo, baseline):
+    """Diff against the buggy baseline ref, not the working tree: agents may commit their
+    fixes. reset() detaches HEAD, so the baseline ref stays pinned while agent commits move
+    HEAD, and this diff captures the fix whether it was committed or left uncommitted."""
     _git(repo, "add", "-N", ".")
-    return _git(repo, "diff", "--", ".", *_EXCLUDES).stdout
+    return _git(repo, "diff", baseline, "--", ".", *_EXCLUDES).stdout
