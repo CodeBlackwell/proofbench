@@ -4,6 +4,7 @@ dist/
 build/
 runs/
 examples/sample-corpus/repos/
+corpora/repos/
 .venv/
 .pytest_cache/
 uv.lock

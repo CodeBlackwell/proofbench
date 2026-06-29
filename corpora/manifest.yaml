@@ -1,0 +1,73 @@
+# proofbench corpus manifest.
+#
+# This is the corpus the crg-debug evaluation used: 7 tasks total, 4 easy
+# debugging-interview repos plus 3 Tier-1 hard cases. `ready` entries are public repos
+# pinned to an exact commit; `bash fetch.sh` clones each into ./repos (gitignored) at its
+# pin and materializes the broken default branch + the answer branch.
+#
+# Pins are recorded so a fetch is reproducible: the same manifest yields the same repos.
+
+# The 4 easy repos, scored as the main sweep.
+ready:
+  - name: debugging-challenge
+    url: https://github.com/josh-tobin/debugging-challenge.git
+    default_branch: master
+    answer_branch: working
+    pin: 21177bda401cd0128aefbce1b80e1bed98676ad7
+
+  - name: BugFix
+    url: https://github.com/IIIT-Delhi/BugFix.git
+    default_branch: main
+    answer_branch: solution
+    pin: 924895ea7dd687b409222c0ce91eec7f3c883f78
+
+  - name: ph2-raccoon-saloon-debugging-challenge
+    url: https://github.com/brewchetta/ph2-raccoon-saloon-debugging-challenge.git
+    default_branch: main
+    answer_branch: solution
+    pin: 72f52d697b6f40fb41b8f708a76cbc4540accf85
+
+  - name: react-debug-practice
+    url: https://github.com/ArohanD/react-debug-practice.git
+    default_branch: master
+    answer_branch: solution
+    pin: 7400054f7add23c2ec401152197c2056f2b3d7a6
+
+# The 3 Tier-1 hard cases, scored individually. Real upstream provenance found (buggy =
+# parent of the fix commit, fixed = the fix commit). Already constructed locally in
+# dawson/ with buggy+fixed branches; URL-listable once hosted or reconstructed from upstream.
+pending:
+  - name: cpython-timsort
+    upstream: https://github.com/python/cpython.git
+    provenance: "listsort merge_collapse run-stack invariant (same class as the Java TimSort bug)"
+    default_branch: buggy
+    answer_branch: fixed
+    status: "host dawson copy, or reconstruct buggy=fix^ / fixed=fix from upstream"
+  - name: cpython-asyncio-cond
+    upstream: https://github.com/python/cpython.git
+    provenance: "Condition.notify vs Task.cancel lost wakeup — python/cpython#112202"
+    default_branch: buggy
+    answer_branch: fixed
+    status: "host dawson copy, or reconstruct from the #112202 fix commit"
+  - name: sudo-baron-samedit
+    upstream: https://github.com/sudo-project/sudo.git
+    provenance: "CVE-2021-3156 heap overflow; fix 1f8638577d0c80a4ff864a2aad80a0d95488e9a8 (+ b301b46b79c6e2a76d530fa36d05992e74952ee8)"
+    default_branch: buggy
+    answer_branch: fixed
+    status: "host dawson copy, or reconstruct buggy=fix^ / fixed=fix from upstream"
+
+# NOT part of the eval. Present in dawson/ but never scored. Listed for reference only;
+# fetch.sh ignores this section.
+extras:
+  - name: D-Bug
+    url: https://github.com/DSC-SIST/D-Bug.git
+    default_branch: main
+    answer_branch: solution
+  - name: matlab-debugging
+    url: https://github.com/AaltoSciComp/matlab-debugging.git
+    default_branch: main
+    answer_branch: solutions
+  - name: node-debug-challenge
+    url: https://github.com/AlecxMoritz/node-debug-challenge.git
+    default_branch: master
+    answer_branch: instructor
