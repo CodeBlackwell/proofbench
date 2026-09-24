@@ -67,6 +67,54 @@ proofbench run      --config proofbench.yaml    # eval + scoreboard
 proofbench optimize --config proofbench.yaml    # baseline -> synth -> re-run -> keep|revert
 ```
 
+### Two task kinds
+
+A corpus entry's `kind` decides what is captured and how it is graded. One corpus holds one
+kind.
+
+- **`repo`** (the default, and everything above): the agent edits a repository, capture is a
+  git diff against the broken branch, and the judge grades that diff against an answer branch.
+- **`question`**: the agent answers a question with a known answer. The corpus is a JSONL
+  file, one question per line; the runner is any executable that reads one question object on
+  stdin and prints one result object on stdout; nothing is reset and no diff is taken.
+
+```yaml
+runner: arms/oracle-tier1.py          # any executable; no built-in runner drives a question
+runner_args: [--snapshot, 3f9a2c1b]   # appended after --model MODEL; quote every number
+models: [sonnet]                      # passed to the arm as --model
+judge_model: opus
+objective: tokens_per_correct
+judge: judge.md                       # your own answer rubric; the question kind ships none
+corpus:
+  - kind: question
+    file: questions/lineage.jsonl
+```
+
+`runner_args` is how an arm that must be told which frozen corpus to read, or which
+configuration it is being measured under, is told: the flags live in the config, so the run is
+reproducible from the config alone. A repo task is invoked `<runner> <invoke> <model>` and has
+nowhere to put them, so carrying them there is a hard stop.
+
+The arm prints `{answer, answer_ids, abstained, tokens_in, tokens_out, cost_usd, seconds,
+chunks, path}`; the last four are logged, the rest are required and a missing one is fatal.
+Grading is an exact match on `answer_ids` after normalisation first, and the judge only when
+prose or a number written as words has to be read. An abstention is correct exactly when the
+question's `answerable` is false.
+
+The scoreboard reports how many of the questions were answerable, abstention split by both
+answerabilities, total tokens, and every per question record, so any question field regroups
+it. A leg that was asked an answerable question reports `accuracy` and `tokens_per_correct`. A
+leg whose questions were all unanswerable reports `abstention_rate` and
+`tokens_per_correct_abstention` and carries no key named accuracy at all: a corpus that can
+only measure abstention has to produce a board that can only be read as abstention. `run`
+prints the tier by hop depth grid over the fifteen cells the stratification fixes, the empty
+ones included, under a heading naming the metric in it. A leg with nothing correct reports its
+price as null, never zero, and reading it as an objective is a hard stop. Try it offline:
+
+```bash
+proofbench run --config examples/question-demo/proofbench.question.yaml
+```
+
 ### The keep/revert gate
 
 `optimize` runs a baseline on the weak leg, asks an LLM to rewrite the subject from the graded
@@ -76,10 +124,12 @@ the harness comparing two numbers, never the model's own claim of success.
 ## Adapters
 
 - **Runner** (`runner:`): `claude` is built in. Any other value is an executable invoked as
-  `<runner> <invoke> <model>`, so you can drive aider, codex, or a custom agent.
+  `<runner> <invoke> <model>` for a repo task, or as `<runner> --model <model> <runner_args>`
+  with the question on stdin for a question task, so you can drive aider, codex, or a custom
+  agent.
 - **Capture**: the git-diff default resets a repo to its default branch and snapshots what the
   agent changed, excluding dependency and cache trees so they never pollute or balloon the
-  judge prompt.
+  judge prompt. A question task captures the arm's result object instead.
 
 ## Bring your own corpus
 

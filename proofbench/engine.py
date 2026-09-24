@@ -5,7 +5,7 @@ parallel (each task is a distinct repo, so no working-tree contention)."""
 import json
 from concurrent.futures import ThreadPoolExecutor
 
-from . import capture, judge, runner
+from . import capture, judge, question, runner
 from .util import die, log
 
 
@@ -69,6 +69,8 @@ def aggregate(grades):
 
 
 def bench(cfg, run_dir, models):
+    if cfg.kind == "question":
+        return question.bench(cfg, run_dir, models)
     gt = _ground_truth(cfg, run_dir)
     board = {}
     for model in models:
@@ -89,4 +91,6 @@ def bench(cfg, run_dir, models):
 def objective_of(board_leg, objective):
     if objective not in board_leg:
         die(f"objective '{objective}' not in scoreboard (have {list(board_leg)})")
+    if board_leg[objective] is None:
+        die(f"objective '{objective}' is undefined on this leg, so nothing can be compared")
     return board_leg[objective]

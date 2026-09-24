@@ -1,10 +1,20 @@
 """Runner adapters: how the subject is driven headless. Driver-agnostic by design.
 
 A built-in name (``claude``) maps to a command builder. Any other value is treated as
-a path to an executable invoked as ``<runner> <invoke> <model>`` — bring your own agent."""
+a path to an executable. A repo task invokes it as ``<runner> <invoke> <model>``; a question
+task hands it one question on stdin and reads one result object back."""
 import json
 import subprocess
 import time
+from pathlib import Path
+
+from .util import die
+
+_NO_META = {"cost_usd": None, "turns": None, "tokens_in": None, "tokens_out": None}
+
+# The result fields the question grade and the headline metric are computed from. The rest of
+# the arm contract (answer, cost_usd, seconds, chunks, path) is logged, never required here.
+_NEEDED = ("answer_ids", "abstained", "tokens_in", "tokens_out")
 
 
 def _claude(invoke, model, max_turns):
@@ -17,26 +27,52 @@ BUILTINS = {"claude": _claude}
 
 
 def _claude_meta(stdout):
-    """Pull cost + turns from a ``claude --output-format json`` envelope. Observability,
-    not a graded metric, so this never dies: a custom runner or malformed envelope yields
-    None and the wall-clock seconds still stand."""
+    """Pull cost, turns and token usage from a ``claude --output-format json`` envelope.
+    Observability for the repo task, so this never dies: a custom runner or malformed
+    envelope yields None and the wall-clock seconds still stand. The question task does not
+    read this; it takes its token counts from the arm's own result object, which it requires."""
     try:
-        env = json.loads(stdout[stdout.index("{"):stdout.rindex("}") + 1])
-        return env.get("total_cost_usd"), env.get("num_turns")
+        envelope = json.loads(stdout[stdout.index("{"):stdout.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError):
-        return None, None
+        return dict(_NO_META)
+    usage = envelope.get("usage") or {}
+    return {"cost_usd": envelope.get("total_cost_usd"), "turns": envelope.get("num_turns"),
+            "tokens_in": usage.get("input_tokens"), "tokens_out": usage.get("output_tokens")}
 
 
 def run(runner, invoke, model, max_turns, cwd, log_path):
     """Execute one headless attempt in ``cwd``; capture all output to ``log_path`` and
-    return its ``{seconds, cost_usd, turns}``.
+    return its ``{seconds, cost_usd, turns, tokens_in, tokens_out}``.
 
-    The agent's exit status is advisory — what gets graded is the artifact it leaves
+    The agent's exit status is advisory: what gets graded is the artifact it leaves
     behind (see capture), never the agent's own claim of success."""
     argv = BUILTINS[runner](invoke, model, max_turns) if runner in BUILTINS \
         else [runner, invoke, model]
     start = time.time()
     proc = subprocess.run(argv, cwd=cwd, capture_output=True, text=True)
     open(log_path, "w").write(proc.stdout + proc.stderr)
-    cost, turns = _claude_meta(proc.stdout) if runner in BUILTINS else (None, None)
-    return {"seconds": round(time.time() - start, 1), "cost_usd": cost, "turns": turns}
+    meta = _claude_meta(proc.stdout) if runner in BUILTINS else dict(_NO_META)
+    return {"seconds": round(time.time() - start, 1), **meta}
+
+
+def ask(arm, model, question, log_path, runner_args=()):
+    """Drive one question through an arm executable: the question object goes in on stdin,
+    one result object comes back on stdout. Unlike a repo task, the arm's exit status is not
+    advisory: there is no artifact left behind to grade, so a failed arm has to be fatal.
+
+    ``runner_args`` is the config's own argv for this arm, appended after --model MODEL. An arm
+    that needs to be told which frozen corpus to read cannot start without it, and reading it
+    off the config is what makes the run reproducible from the config alone."""
+    proc = subprocess.run([str(arm), "--model", model, *runner_args], input=json.dumps(question),
+                          capture_output=True, text=True)
+    Path(log_path).write_text(proc.stdout + proc.stderr)
+    if proc.returncode != 0:
+        die(f"arm exited {proc.returncode} on {question['id']}: {proc.stderr.strip()[:300]}")
+    try:
+        result = json.loads(proc.stdout.strip())
+    except json.JSONDecodeError:
+        die(f"arm printed no result object on {question['id']}: {proc.stdout.strip()[:300]}")
+    missing = [field for field in _NEEDED if field not in result]
+    if missing:
+        die(f"arm result on {question['id']} is missing {missing}")
+    return result
