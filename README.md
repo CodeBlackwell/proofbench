@@ -115,6 +115,41 @@ price as null, never zero, and reading it as an objective is a hard stop. Try it
 proofbench run --config examples/question-demo/proofbench.question.yaml
 ```
 
+### Repeated trials: pass^k and pass@k
+
+One trial of a question says whether the arm can be right. It does not say whether the arm is
+right every time. `trials` asks every question that many times, each trial a fresh arm process:
+
+```yaml
+trials: 3
+objective: pass^3        # any pass^k or pass@k up to the trials run can be the objective
+```
+
+- **`pass^k`**: the chance that k trials of one question are all correct. The reliability
+  reading, and the one to gate on for anything a person will rely on unattended.
+- **`pass@k`**: the chance that at least one of k trials is correct. The capability reading.
+
+Both are averaged over the questions and reported for every k from 1 to `trials`, so one run
+yields the whole curve. With c of n trials correct a question contributes `C(c,k)/C(n,k)` to
+`pass^k` and `1 - C(n-c,k)/C(n,k)` to `pass@k`. `pass^1` and `pass@1` both equal `accuracy`,
+which counts trials. The gap between `pass@k` and `pass^k` is the arm's inconsistency, and
+`unstable_questions` names the questions behind it: those answered both right and wrong.
+
+What changes with trials:
+
+- Every record carries its `trial`, and each trial keeps its own `result.json` and `run.log`
+  under `runs/<run-id>/<model>/<question id>/trial-<n>/`.
+- `questions`, `answerable` and `unanswerable` count questions, never trials. Token and cost
+  totals cover every trial.
+- `run` prints the curve under the headline, and a second grid of `pass^k` at the full trial
+  count beside the accuracy grid.
+- A leg that measured only abstention carries the curve as `abstention_pass^k` and
+  `abstention_pass@k`, for the same reason it carries no key named accuracy.
+
+Hard stops: an objective naming a k above `trials`, two questions sharing an id, questions
+asked unequal numbers of times, and `trials` on a repo corpus, which has no right or wrong
+grade per attempt to count.
+
 ### The keep/revert gate
 
 `optimize` runs a baseline on the weak leg, asks an LLM to rewrite the subject from the graded

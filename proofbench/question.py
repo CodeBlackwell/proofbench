@@ -46,12 +46,13 @@ def grade_one(cfg, question, result, judge_model):
             "judge_why": verdict.get("why", "")}
 
 
-def _ask_and_grade(cfg, question, model, out_dir):
+def _ask_and_grade(cfg, question, trial, model, out_dir):
     """The arm's own report of how it answered travels with the grade. An arm that says it read
     a canned reply is the only thing downstream can learn that from, so dropping "stubbed" here
     is what let a canned leg reach the registry looking like a measurement."""
     result = runner.ask(cfg.runner, model, question, out_dir / "run.log", cfg.runner_args)
-    record = {"id": question["id"], **grade_one(cfg, question, result, cfg.judge_model),
+    record = {"id": question["id"], "trial": trial,
+              **grade_one(cfg, question, result, cfg.judge_model),
               "abstained": bool(result["abstained"]),
               "answerable": bool(question["answerable"]),
               "tokens_in": result["tokens_in"], "tokens_out": result["tokens_out"],
@@ -63,13 +64,19 @@ def _ask_and_grade(cfg, question, model, out_dir):
 
 
 def _leg(cfg, questions, model, run_dir):
-    log(f"leg [{model}] {len(questions)} questions, concurrency {cfg.concurrency}")
+    """Every question is asked cfg.trials times, each trial a fresh arm process that knows
+    nothing of the others, so the trials of one question are independent draws."""
+    log(f"leg [{model}] {len(questions)} questions x {cfg.trials} trials, "
+        f"concurrency {cfg.concurrency}")
+    attempts = [(question, trial) for question in questions
+                for trial in range(1, cfg.trials + 1)]
     with ThreadPoolExecutor(max_workers=cfg.concurrency) as pool:
-        def work(question):
-            out_dir = run_dir / model / question["id"]
+        def work(attempt):
+            question, trial = attempt
+            out_dir = run_dir / model / question["id"] / f"trial-{trial}"
             out_dir.mkdir(parents=True, exist_ok=True)
-            return _ask_and_grade(cfg, question, model, out_dir)
-        records = list(pool.map(work, questions))
+            return _ask_and_grade(cfg, question, trial, model, out_dir)
+        records = list(pool.map(work, attempts))
     leg = {**scoreboard.describe_provenance(records), **scoreboard.metrics(records),
            "records": records}
     (run_dir / model).mkdir(parents=True, exist_ok=True)
@@ -77,9 +84,19 @@ def _leg(cfg, questions, model, run_dir):
     return leg
 
 
+def _refuse_shared_ids(questions):
+    """Trials are gathered by question id, so two questions sharing one would be scored as two
+    trials of a single question."""
+    ids = [question["id"] for question in questions]
+    shared = sorted({one for one in ids if ids.count(one) > 1})
+    if shared:
+        die(f"question ids are not unique: {shared}")
+
+
 def bench(cfg, run_dir, models):
     """The question leg of the bench, one leg per answering model, mirroring engine.bench."""
     questions = [question for task in cfg.corpus for question in load(task.path)]
+    _refuse_shared_ids(questions)
     board = {model: _leg(cfg, questions, model, run_dir) for model in models}
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "scoreboard.json").write_text(json.dumps(board, indent=2))

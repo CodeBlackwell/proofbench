@@ -3,6 +3,7 @@
 The grid is the point of the grouping: fifteen cells, tier crossed with hop depth, every one
 of them computed from the per question records, so a saved scoreboard regroups by any
 question field without re-running an arm."""
+import itertools
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,10 +17,12 @@ DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.ya
 
 TIERS = (1, 2, 3)
 DEPTHS = (1, 2, 3, 5, 7)
+# Records sharing an id are trials of one question, so every record here takes its own.
+SERIAL = itertools.count(1)
 
 
 def record(correct, answerable=True, abstained=False, tier=1, hops=1, kind="lookup"):
-    return {"id": f"LQ-{tier}{hops}", "correct": correct, "graded_by": "exact",
+    return {"id": f"LQ-{next(SERIAL):04d}", "correct": correct, "graded_by": "exact",
             "abstained": abstained, "answerable": answerable,
             "tokens_in": 100, "tokens_out": 10,
             "question": {"tier": tier, "hops": hops, "type": kind}}

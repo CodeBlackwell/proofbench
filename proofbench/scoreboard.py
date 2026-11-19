@@ -10,7 +10,13 @@ the stub marker, so the marker has to reach it or the refusal has nothing to ref
 A leg whose questions hold nothing answerable measured abstention and nothing else, so it is
 given no key named accuracy and no key named tokens_per_correct. A reader lifts the word, never
 the caveat printed beside it, and the one word a corpus of verified absences can carry is
-abstention."""
+abstention.
+
+A question asked more than once has one record per trial, all under its id. accuracy then
+counts trials, and pass^k and pass@k say how the trials of one question agree: a leg that is
+right on average and a leg that is right every time are different legs."""
+from math import comb
+
 from .util import die
 
 # The stratification the PRD fixes: three tiers crossed with five hop depths, fifteen cells.
@@ -62,20 +68,58 @@ def _abstention_rates(answerable, unanswerable):
     }
 
 
+def _gather_trials(records):
+    """Every trial of one question under its id. Each question has to have been asked the same
+    number of times, or a rate over them compares nothing, so an unequal count is a hard stop."""
+    questions = {}
+    for record in records:
+        questions.setdefault(record["id"], []).append(record)
+    counts = {len(attempts) for attempts in questions.values()}
+    if len(counts) != 1:
+        die(f"questions were asked unequal numbers of times: {sorted(counts)}")
+    return questions
+
+
+def _pass_rates(questions, trials, prefix):
+    """pass^k is the chance that k trials of one question are all correct, and pass@k the chance
+    that at least one is, each averaged over the questions. With c of n trials correct,
+    C(c,k)/C(n,k) and 1 - C(n-c,k)/C(n,k) estimate them without bias for every k up to n, so one
+    run of n trials yields the whole curve. pass^1 and pass@1 are both the per trial rate."""
+    corrects = [sum(attempt["correct"] for attempt in attempts) for attempts in questions.values()]
+    rates = {}
+    for k in range(1, trials + 1):
+        draws = comb(trials, k) * len(corrects)
+        rates[f"{prefix}pass^{k}"] = _rate(sum(comb(c, k) for c in corrects), draws)
+        rates[f"{prefix}pass@{k}"] = _rate(draws - sum(comb(trials - c, k) for c in corrects), draws)
+    return rates
+
+
+def _find_unstable(questions):
+    """The questions answered both right and wrong across their trials. They are what separates
+    pass^k from pass@k, and the ones to read first: the arm, not the question, changed."""
+    return sorted(question_id for question_id, attempts in questions.items()
+                  if 0 < sum(attempt["correct"] for attempt in attempts) < len(attempts))
+
+
 def metrics(records):
     """What this set of records measured, under names it can carry. The answerable and the
     unanswerable counts print on every leg, because they are what decides whether the rate
-    beside them is an accuracy at all."""
+    beside them is an accuracy at all. They count questions, never trials."""
     answerable = [record for record in records if record["answerable"]]
     unanswerable = [record for record in records if not record["answerable"]]
+    questions = _gather_trials(records)
+    trials = len(records) // len(questions)
     tokens = _tokens(records)
     score = _score_answers if answerable else _score_abstentions
     return {
-        "questions": len(records),
-        "answerable": len(answerable),
-        "unanswerable": len(unanswerable),
+        "questions": len(questions),
+        "trials": trials,
+        "answerable": len({record["id"] for record in answerable}),
+        "unanswerable": len({record["id"] for record in unanswerable}),
         "measures": "accuracy and abstention" if answerable else "abstention only",
         **score(records, tokens),
+        **_pass_rates(questions, trials, "" if answerable else "abstention_"),
+        "unstable_questions": _find_unstable(questions),
         **_abstention_rates(answerable, unanswerable),
         "tokens_in": sum(record["tokens_in"] for record in records),
         "tokens_out": sum(record["tokens_out"] for record in records),

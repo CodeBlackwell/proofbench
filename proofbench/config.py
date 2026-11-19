@@ -1,4 +1,5 @@
 """Config is the entire domain surface. The engine reads only this object."""
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -6,6 +7,9 @@ import yaml
 
 from . import runner
 from .util import die
+
+# pass^3, pass@3, and the names an abstention only leg carries them under.
+PASS_OBJECTIVE = re.compile(r"(?:abstention_)?pass[@^](\d+)")
 
 
 @dataclass
@@ -39,6 +43,7 @@ class Config:
     subject: Path = None             # the artifact under optimization; None => pure-eval mode
     synth_prompt: str = None         # presence (with subject) unlocks `optimize`
     kind: str = "repo"               # "repo" grades a diff, "question" grades an answer
+    trials: int = 1                  # times each question is asked; pass^k and pass@k read them
 
     @property
     def can_optimize(self):
@@ -87,11 +92,33 @@ def _read_runner_args(raw, kind):
     return args
 
 
+def _read_trials(raw, kind):
+    """How many times each question is asked. pass^k and pass@k count right and wrong attempts,
+    and only a question task grades an attempt right or wrong: a repo task is graded on the
+    judge's numeric fields, so trials there is a hard stop and never a silent single run."""
+    trials = int(raw.get("trials", 1))
+    if trials < 1:
+        die(f"trials must be at least 1: {trials}")
+    if trials > 1 and kind != "question":
+        die(f"trials is a question corpus key: a {kind} task has no pass or fail to count")
+    return trials
+
+
+def _refuse_objective_beyond_trials(objective, trials):
+    """pass^k and pass@k exist only for k up to the trials run. An objective naming a larger k
+    is refused here, before the run is spent, and not after it by a missing scoreboard key."""
+    asked = PASS_OBJECTIVE.fullmatch(objective)
+    if asked and int(asked.group(1)) > trials:
+        die(f"objective '{objective}' needs {asked.group(1)} trials, and the config runs {trials}")
+
+
 def _build_config(raw, root, resolve, kind, tasks):
     """Every field the engine reads, so load stays the front door: find the file, parse it,
     resolve the corpus."""
     runner_name = raw.get("runner", "claude")
     models = raw.get("models") or die("config has no models")
+    trials = _read_trials(raw, kind)
+    _refuse_objective_beyond_trials(raw.get("objective", "macro_recall"), trials)
     return Config(
         root=root,
         runner=_arm(runner_name, resolve) if kind == "question" else runner_name,
@@ -107,6 +134,7 @@ def _build_config(raw, root, resolve, kind, tasks):
         subject=resolve(raw.get("subject")),
         synth_prompt=resolve(raw.get("synth")).read_text() if raw.get("synth") else None,
         kind=kind,
+        trials=trials,
     )
 
 

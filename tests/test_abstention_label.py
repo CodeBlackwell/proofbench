@@ -8,16 +8,19 @@ number off that file is an abstention rate and that reporting it as accuracy is 
 error, but the README is not what prints.
 
 Offline, and no arm runs: every case here is built from graded records."""
+import itertools
 import unittest
 
 from proofbench import engine, scoreboard
 from proofbench.util import HarnessError
 
 TOKENS_PER_QUESTION = 205          # 190 in, 15 out, the shape an arm reports
+# Records sharing an id are trials of one question, so every record here takes its own.
+SERIAL = itertools.count(1)
 
 
 def record(correct, answerable=True, abstained=False, tier=1, hops=1):
-    return {"id": f"UQ-{tier}{hops}", "correct": correct, "graded_by": "abstention",
+    return {"id": f"UQ-{next(SERIAL):04d}", "correct": correct, "graded_by": "abstention",
             "abstained": abstained, "answerable": answerable,
             "tokens_in": 190, "tokens_out": 15,
             "question": {"tier": tier, "hops": hops, "type": "unanswerable"}}
