@@ -1,11 +1,59 @@
 # crg-debug Eval: Opus vs Sonnet vs Haiku
 
+> **This is a record, not a manual.** It describes the evaluation as it ran at the time. The harness has changed since; the [README](../README.md) describes how it works today.
+
 Living record of the crg-debug debugging-skill evaluation across three driver models.
 The easy five-repo phase is complete (see Results); the Tier-1 hard-case phase is now running
 to break the easy-repo recall ceiling (see Tier-1 hard cases and Status). Rounds 1 to 3 evaluate
 the prose **skill**; **Round 4** is the architectural turn the doc had been pointing at — enforcement
 moved out of `SKILL.md` prose into a deterministic Workflow (`.claude/workflows/crg-debug.js`), where
 gates are exit codes the script reads, not model claims.
+
+## Contents
+
+- [Objective](#objective)
+- [Method (what we did)](#method-what-we-did)
+  - [Three legs](#three-legs)
+- [Harness bugs found and fixed during the runs](#harness-bugs-found-and-fixed-during-the-runs)
+- [Results](#results)
+  - [Baseline (recall / precision)](#baseline-recall--precision)
+  - [Improved (after closed-loop skill edit)](#improved-after-closed-loop-skill-edit)
+  - [Synthesis anatomy (how each leg improved the skill)](#synthesis-anatomy-how-each-leg-improved-the-skill)
+  - [Convergence is the adoption signal](#convergence-is-the-adoption-signal)
+  - [How to synthesize (the method this surfaced)](#how-to-synthesize-the-method-this-surfaced)
+- [Findings and interpretation](#findings-and-interpretation)
+- [Tier-1 hard cases (the discriminator set)](#tier-1-hard-cases-the-discriminator-set)
+  - [The three cases](#the-three-cases)
+  - [Why these are hard discriminators (and Heartbleed is not)](#why-these-are-hard-discriminators-and-heartbleed-is-not)
+  - [Single-artifact design (how they map onto the harness with no new machinery)](#single-artifact-design-how-they-map-onto-the-harness-with-no-new-machinery)
+  - [Wiring](#wiring)
+  - [Results (recall / precision, run with `--only` per case)](#results-recall--precision-run-with---only-per-case)
+- [Round 2 — trace-and-reverify loop (band-vs-band protocol)](#round-2--trace-and-reverify-loop-band-vs-band-protocol)
+  - [Why a second round, and what we changed](#why-a-second-round-and-what-we-changed)
+  - [Investigation log (why the last change failed — grounded in the diffs)](#investigation-log-why-the-last-change-failed--grounded-in-the-diffs)
+  - [Considerations weighed (and the calls made)](#considerations-weighed-and-the-calls-made)
+  - [The change (exact)](#the-change-exact)
+  - [Method](#method)
+  - [Results (band-vs-band)](#results-band-vs-band)
+- [Round 3 — iterative session-resumed loop (real-user-style iteration)](#round-3--iterative-session-resumed-loop-real-user-style-iteration)
+  - [Why this round](#why-this-round)
+  - [The change (harness, not prompt)](#the-change-harness-not-prompt)
+  - [Why this design, not the alternatives](#why-this-design-not-the-alternatives)
+  - [Three cells (iteration AND the prompt edit, each isolated)](#three-cells-iteration-and-the-prompt-edit-each-isolated)
+  - [Results](#results-1)
+  - [Verdict — edit REJECTED, not promoted](#verdict--edit-rejected-not-promoted)
+  - [Pattern preserved — "no RED, no edit" + trace-and-reverify (model-tier-gated, not discarded)](#pattern-preserved--no-red-no-edit--trace-and-reverify-model-tier-gated-not-discarded)
+  - [Diagnosis — why iterative-pristine timsort failed (recall 0.0 / precision 0.5)](#diagnosis--why-iterative-pristine-timsort-failed-recall-00--precision-05)
+- [Round 4 — Workflow harness: enforcement in code, not prose](#round-4--workflow-harness-enforcement-in-code-not-prose)
+  - [Why this round](#why-this-round-1)
+  - [What was built](#what-was-built)
+  - [SKILL → Workflow as a /command](#skill--workflow-as-a-command)
+  - [BugFix validation (haiku driver), three runs](#bugfix-validation-haiku-driver-three-runs)
+  - [Finding A — repo framing is a verify-phase confound](#finding-a--repo-framing-is-a-verify-phase-confound)
+  - [Finding B — a latent harness bug the cleanup exposed](#finding-b--a-latent-harness-bug-the-cleanup-exposed)
+  - [What Round 4 settles, and what it does not](#what-round-4-settles-and-what-it-does-not)
+- [Status (update as runs land)](#status-update-as-runs-land)
+- [Reproduce](#reproduce)
 
 ## Objective
 

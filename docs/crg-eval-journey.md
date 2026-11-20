@@ -1,8 +1,10 @@
 # The Gate the Model Could Not Skip
 
+> **This is a record, not a manual.** It describes the evaluation as it ran at the time. The harness has changed since; the [README](../README.md) describes how it works today.
+
 *A field journal from evaluating a debugging skill, and what it took to make the eval tell the truth.*
 
-This is the story behind [CRG-EVAL-RESULTS.md](./CRG-EVAL-RESULTS.md). That document is the
+This is the story behind [crg-eval-results.md](./crg-eval-results.md). That document is the
 clinical record: tables, exact numbers, per round verdicts. This one is the journey. The wrong
 turns, the moments a confident number turned out to be a lie, and the slow realization that no
 amount of prompt wording would make a weak model rigorous. If you want the evidence, read the
@@ -13,6 +15,19 @@ can query to localize code. **crg-debug** is a skill that drives a graph aware d
 map the hotspots, fan out parallel discovery over disjoint concerns, verify findings adversarially,
 then fix in TDD waves. The whole project below is one long attempt to find out whether that skill
 actually works, and then to make it work on a model weak enough to embarrass it.
+
+## Contents
+
+- [The premise](#the-premise)
+- [First, the measuring stick lied to me](#first-the-measuring-stick-lied-to-me)
+- [The ceiling problem](#the-ceiling-problem)
+- [Harder targets](#harder-targets)
+- [The conundrum that defined the project](#the-conundrum-that-defined-the-project)
+- [The realization](#the-realization)
+- [Round 4, the turn](#round-4-the-turn)
+- [The refactor that made it a command](#the-refactor-that-made-it-a-command)
+- [The two surprises in validation](#the-two-surprises-in-validation)
+- [What I actually learned](#what-i-actually-learned)
 
 ## The premise
 
@@ -266,6 +281,6 @@ in code.
 
 ---
 
-*For the numbers behind every claim here, see [CRG-EVAL-RESULTS.md](./CRG-EVAL-RESULTS.md): the
+*For the numbers behind every claim here, see [crg-eval-results.md](./crg-eval-results.md): the
 harness bugs in "Harness bugs found and fixed," the ceiling in "Findings," the hard cases in "Tier-1
 hard cases," the prose-gate failures in Rounds 2 and 3, and the Workflow turn in Round 4.*

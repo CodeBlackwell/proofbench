@@ -1,93 +1,129 @@
 # Methodology
 
-proofbench is the distilled form of a long evaluation of one debugging skill. The full field
-journal is [docs/crg-eval-journey.md](docs/crg-eval-journey.md), with the numbers in
-[docs/crg-eval-results.md](docs/crg-eval-results.md). This page is the part that generalizes:
-the handful of things that evaluation taught, each now a property the harness enforces rather
-than advice you have to remember.
+Why proofbench is built the way it is. It came out of a long evaluation of one debugging
+skill, and each lesson from that evaluation is now something the tool enforces, not advice
+you have to remember.
 
-## 1. Fail loud, or do not measure
+- The story of that evaluation: [docs/crg-eval-journey.md](docs/crg-eval-journey.md)
+- Its numbers: [docs/crg-eval-results.md](docs/crg-eval-results.md)
 
-The most dangerous output of a test harness is a confident wrong number. In the original run, a
-judge call silently exceeded the OS argument limit, its error was swallowed, an empty grade
-flowed onward, and the scoreboard reported a clean average of four cells while presenting it as
-five. Not a crash. A plausible lie.
+[Back to the README](README.md)
 
-proofbench makes that failure impossible to ignore. Every empty or non-numeric grade raises and
-halts. Large prompts go to the judge on stdin, never on argv, so an embedded diff cannot abort
-the call past the argument limit. Capture excludes installed dependency and cache trees, which
-are never the agent's work and can balloon a prompt past that limit. These live in `util.py`,
-`judge.py`, and `capture.py`, and they are the subject of the test suite, because they are the
-product.
+## Contents
 
-The question task kind inherits the rule and sharpens it in three places, each a decision
-worth writing down rather than rediscovering:
+- [1. Fail loud or do not measure](#1-fail-loud-or-do-not-measure)
+- [2. The weak model is the signal](#2-the-weak-model-is-the-signal)
+- [3. A rule in a prompt is a request](#3-a-rule-in-a-prompt-is-a-request)
+- [4. The corpus is part of the method](#4-the-corpus-is-part-of-the-method)
+- [5. The thing being measured must not see the answer](#5-the-thing-being-measured-must-not-see-the-answer)
+- [The arc in one line](#the-arc-in-one-line)
 
-- **A missing token count is fatal, a missing chunk list is not.** An arm that cannot report
-  `tokens_in` and `tokens_out` cannot produce tokens per correct answer, the metric the whole
-  comparison turns on, and a zero there would read as a free answer. So those fields are
-  required of the arm and their absence halts the leg. The fields the harness only logs are
-  not policed: it cannot enforce what it does not read.
-- **No correct answer means no price, not a price of zero.** `tokens_per_correct` is a ratio,
-  and with nothing correct it is undefined. Halting the whole leg there would throw away the
-  accuracy and abstention numbers that did measure something, so the metric is reported as
-  null and reading it as an objective is what halts. The alternative, printing zero, would
-  rank the worst possible arm as the cheapest.
-- **The judge grades words, never ids.** An exact match on normalised ids settles a question
-  without a model in the loop, so the judge is reached only for prose and numbers written as
-  words. Its verdict must be 1 or 0: a fraction is a hard stop, because the scoreboard counts
-  that field as correct answers and partial credit would quietly inflate accuracy.
-- **A corpus with no answerable question gets no key named accuracy.** Grading a set of
-  verified absences produces a real number, and calling that number accuracy makes an arm that
-  refused everything look perfect. A leg reports `accuracy` and `tokens_per_correct` only once
-  an answerable question has been asked of it, and otherwise reports `abstention_rate` and
-  `tokens_per_correct_abstention`. A reader lifts the word and leaves the caveat beside it, so
-  the answerable and unanswerable counts print on every leg and the word can be checked.
-- **Measured is a positive claim.** A leg counts as a measurement only when an arm says it was
-  not canned and says what it cost. Both denials used to be absence triggered, so a leg nobody
-  vouched for came back measured: absence of evidence, read as evidence.
-- **The grid takes its axes from the stratification, never from the data.** Rows and columns
-  derived from the keys that happen to be present draw a whole looking table over two cells of
-  fifteen. Every cell the stratification names prints, and an empty one prints empty.
+## 1. Fail loud or do not measure
 
-## 2. The weak model is the signal, not the noise
+**What happened.** The most dangerous output of a test harness is a confident wrong number.
+In the original run:
 
-A self-improving loop learns from misses. Frontier models on easy tasks miss almost nothing, so
-they teach nothing. The counterintuitive consequence: the weak model is not the liability in
-this setup, it is the only source of signal. Its misses are the curriculum.
+- A judge call silently exceeded the operating system's argument limit.
+- Its error was swallowed, and an empty grade flowed onward.
+- The scoreboard reported a clean average of four cells and presented it as five.
 
-So proofbench is model-sweep native. `models:` is a list, and `optimize` drives the **weakest**
-leg on purpose, the last entry of `models`. To keep the signal clean, `judge_model` and
-`synth_model` are held constant and default to the first entry, so list the strongest model
-first or name them yourself. You never let the model under test grade its own homework or rewrite
-its own instructions.
+It was not a crash. It was a plausible lie.
 
-## 3. A prose gate is a request, not a guarantee
+**What proofbench does.**
 
-The longest stretch of the original work was spent trying to fix a weak model's misdiagnoses by
-writing better instructions. It failed, repeatedly and expensively, and always the same way.
-Prompt compliance scales with model strength, which means the exact model that most needs a rule
-is the one most likely to read it as optional. You cannot wordsmith a weak model into rigor.
+- Every empty or non-numeric grade stops the run.
+- Large prompts go to the judge on stdin, never as an argument, so a long diff cannot abort
+  the call.
+- Dependency and cache folders are left out of the captured diff. They are never the agent's
+  work and can make a prompt enormous.
+- Every git command and every child process is checked. A failure stops the run in one line.
+- The config and the question file are checked whole before anything is paid for.
 
-The lesson for any eval is narrower and sharper: when a rule must hold, it belongs in code the
-model cannot route around, not in text the model is trusted not to skip. proofbench applies this
-to its own gates. The keep/revert decision in `optimize.py` is the harness comparing two numbers.
-"The score held" is not a thing the model can say. It is a thing only the comparison can return.
+**The same rule in question tasks.** Each of these was a decision worth writing down:
+
+- **A missing token count is fatal.** Without `tokens_in` and `tokens_out` there is no tokens
+  per correct answer, and a zero there would read as a free answer.
+- **Nothing correct means no price, not a price of zero.** `tokens_per_correct` is undefined
+  when nothing was correct. It is reported as null, and reading it as an objective stops the
+  run. A zero would rank the worst arm as the cheapest.
+- **The judge reads words, never ids.** An exact match on ids settles a question with no model
+  involved. The judge is only reached for prose. Its verdict must be 1 or 0, because partial
+  credit would quietly inflate accuracy.
+- **A corpus with nothing answerable gets no key named accuracy.** Calling that number
+  accuracy makes an arm that refused everything look perfect. Such a leg reports
+  `abstention_rate` instead.
+- **Measured is a positive claim.** A leg counts as a measurement only when the arm says it
+  was not canned and says what it cost. Silence is not evidence.
+- **The grid's axes come from the design, never from the data.** A table drawn over the cells
+  that happen to be filled looks complete with two cells of fifteen. Every cell prints, and an
+  empty one prints as empty.
+
+## 2. The weak model is the signal
+
+**What happened.** A loop that improves a skill learns from misses. Frontier models on easy
+tasks miss almost nothing, so they teach nothing.
+
+**The consequence.** The weak model is not the liability in this setup. It is the only source
+of signal. Its misses are the curriculum.
+
+**What proofbench does.**
+
+- `models` is a list, so every run can sweep several models.
+- `optimize` runs against the last entry, the weakest, on purpose.
+- `judge_model` and `synth_model` are held constant. They default to the first entry, so list
+  the strongest model first or name them yourself.
+- The model under test never grades its own work or rewrites its own instructions.
+
+## 3. A rule in a prompt is a request
+
+**What happened.** The longest stretch of the original work went into fixing a weak model's
+mistakes by writing better instructions. It failed, repeatedly and expensively, in the same
+way every time.
+
+- How well a model follows a prompt grows with how strong the model is.
+- So the model that most needs a rule is the one most likely to treat it as optional.
+- You cannot word a weak model into being rigorous.
+
+**What proofbench does.** When a rule must hold, it lives in code the model cannot route
+around.
+
+- The keep or revert decision in `optimize` is the harness comparing two numbers.
+- "The score held" is not something the model can say. Only the comparison can return it.
 
 ## 4. The corpus is part of the method
 
-Two findings about the data, not the harness, generalize into [CORPUS.md](CORPUS.md):
+Two findings about the data, not the harness. Both are expanded in [CORPUS.md](CORPUS.md).
 
-- **Do not use famous bugs.** A frontier model recognizes Heartbleed on sight, and then you are
-  measuring training recall, not method. Pick subtle, real defects where the correct reasoning is
-  about an invariant or a contract, not a typo a model has memorized.
-- **Do not let the corpus telegraph its answers.** In one run the task repos announced their own
-  planted bugs in the README and in `# Buggy` comments. The judge read the marketing and
-  classified real contract violations as intentional design. A task that advertises its answer
-  measures nothing. State the true contract; never label the defect.
+- **Do not use famous bugs.** A frontier model recognises Heartbleed on sight, and then you
+  are measuring memory, not method. Pick subtle, real defects where the reasoning is about an
+  invariant or a contract.
+- **Do not let the corpus point at its answers.** In one run the task repos announced their
+  own planted bugs in the README and in `# Buggy` comments. The judge read the hints and
+  classified real contract violations as intended design. State the true contract and never
+  label the defect.
 
-## The arc, in one line
+## 5. The thing being measured must not see the answer
 
-The evaluation kept writing its own conclusions, round after round, and the work was learning to
-stop saying them in a prompt and start building them in code. proofbench is what that looks like
-when it is finished: the lessons are the implementation.
+**What happened.** A later audit found the harness itself leaking.
+
+- A question arm was handed the whole question record, answer key included.
+- A repo agent worked in the repository that held the answer branch, one `git checkout` away.
+- The rewrite in `optimize` was scored on the same items whose answers it had been shown.
+
+None of these needed a dishonest model. An arm that simply passed its input along, or an
+agent that listed its branches, would have been graded against a key it had been given.
+
+**What proofbench does.**
+
+- An arm is handed a question's id and text, and nothing else.
+- A repo agent works in a throwaway clone that holds the broken branch alone, with no remote.
+- `optimize` learns from one part of the corpus and is scored on another, marked
+  `holdout: true`.
+- The judge runs with no tools and none of your personal configuration, so a diff cannot
+  instruct it and a grade does not depend on where you ran the command.
+
+## The arc in one line
+
+The evaluation kept writing its own conclusions, round after round. The work was learning to
+stop saying them in a prompt and start building them in code. proofbench is what that looks
+like when it is finished: the lessons are the implementation.
