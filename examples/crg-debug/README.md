@@ -19,7 +19,7 @@ judge_model: opus
 synth_model: opus
 objective: macro_recall
 judge: ../../prompts/judge.md
-synth: ../../prompts/synth.md
+synth: ../../prompts/synth.md                   # `optimize` also needs some corpus entries marked `holdout: true`
 
 corpus:
   # your bug-fix repos, each with a broken default branch and a fixed solution branch.

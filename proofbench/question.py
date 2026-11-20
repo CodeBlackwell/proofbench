@@ -140,11 +140,17 @@ def _refuse_off_the_grid(questions):
         die(f"questions sit outside the stratification {axes}: {outside}")
 
 
-def bench(cfg, run_dir, models):
-    """The question leg of the bench, one leg per answering model, mirroring engine.bench."""
+def read(cfg):
+    """Every question of the corpus, checked whole. No arm is asked here."""
     questions = [question for task in cfg.corpus for question in load(task.path)]
     _refuse_shared_ids(questions)
     _refuse_off_the_grid(questions)
+    return questions
+
+
+def bench(cfg, run_dir, models):
+    """The question leg of the bench, one leg per answering model, mirroring engine.bench."""
+    questions = read(cfg)
     board = {model: _leg(cfg, questions, model, run_dir) for model in models}
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "scoreboard.json").write_text(json.dumps(board, indent=2))

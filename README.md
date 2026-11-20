@@ -172,14 +172,28 @@ grade per attempt to count.
 misses, re-runs, and keeps the rewrite only if the objective did not regress. The decision is
 the harness comparing two numbers, never the model's own claim of success.
 
+The rewrite learns from one part of the corpus and is scored on another. Mark the entries the
+gate scores on `holdout: true`; the rest are what the rewrite learns from:
+
+```yaml
+corpus:
+  - { kind: question, file: questions/train.jsonl }
+  - { kind: question, file: questions/heldout.jsonl, holdout: true }
+```
+
+A repo task takes the same key. The baseline and the re-run that the gate compares both run on
+the held-out entries only, and the rewrite is never shown them. `optimize` refuses a corpus
+with nothing held out, or nothing left to learn from, before it spends anything; `run` ignores
+the key and benches every entry. `result.json` names the held-out entries the verdict rests on.
+
 The comparison runs in the objective's own direction: a higher rate, recall or `pass^k` is
 kept, and so is a lower `tokens_per_correct`.
 
 On a question corpus the rewrite is shown only the questions the weak leg got wrong on at least
 one trial: the question, the expected answer, and what each trial answered. A baseline with
 nothing wrong is a hard stop before the rewrite, since there is nothing to learn from. The
-baseline and the re-run use the same questions, so a gain can be the subject fitting those
-questions. Check a kept rewrite on a question file the loop never saw.
+rewrite does see the expected answers to the questions it learns from, which is why the gate
+scores it on the held-out ones: a question id on both sides of the split is a hard stop.
 
 ## Adapters
 

@@ -4,7 +4,8 @@
 #
 # The 3 Tier-1 hard cases (cpython-timsort, cpython-asyncio-cond, sudo-baron-samedit)
 # are `pending` in manifest.yaml — add them here once hosted or reconstructed.
-# To self-improve a skill, add `subject:` + `synth:` and set `models` to a weak leg.
+# To self-improve a skill, add `subject:` + `synth:`, set `models` to a weak leg, and mark the
+# tasks the gate scores on `holdout: true` (the rewrite learns from the rest).
 #
 # The 2 hard cases below are single instances reconstructed from published benchmarks, each
 # materialized as a buggy->fixed git pair (branches `buggy` and `fixed`):

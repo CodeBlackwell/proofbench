@@ -2,7 +2,8 @@
 # Then:                                  proofbench run --demo
 #
 # Pure-eval mode: no `subject` / `synth`, so only `run` is available. To try the
-# self-improving loop, point `subject` at a skill file and uncomment `synth`.
+# self-improving loop, point `subject` at a skill file, uncomment `synth`, and mark one of the
+# two tasks `holdout: true`: the rewrite learns from the other and is scored on that one.
 runner: claude
 models: [haiku]            # single weak leg keeps the demo cheap; add sonnet/opus to sweep
 judge_model: opus         # held constant — never let the driver grade its own homework

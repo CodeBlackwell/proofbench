@@ -14,12 +14,19 @@ class Task:
     invoke: str          # what the agent is asked to do, e.g. "/crg-debug"
     default_branch: str  # the broken / initial state
     answer_branch: str   # the ground-truth fixed state
+    holdout: bool = False  # scored by the optimize gate, never shown to the synth
 
 
 @dataclass
 class QuestionSet:
     name: str
     path: Path           # JSONL, one question per line, with its known answer
+    holdout: bool = False  # scored by the optimize gate, never shown to the synth
+
+
+def _held(entry):
+    held = entry.get("holdout", False)
+    return held if isinstance(held, bool) else die(f"holdout must be true or false: {entry}")
 
 
 def _question_file(path):
@@ -53,11 +60,12 @@ def read_corpus(entries, resolve):
     kind = kinds.pop()
     _need(entries, ("file",) if kind == "question" else TASK_KEYS if kind == "repo" else ())
     if kind == "question":
-        return kind, [QuestionSet(name=Path(entry["file"]).stem,
+        return kind, [QuestionSet(name=Path(entry["file"]).stem, holdout=_held(entry),
                                   path=_question_file(resolve(entry["file"]))) for entry in entries]
     if kind != "repo":
         die(f"unknown corpus kind: {kind}")
     return kind, _refuse_shared_names([
         Task(name=entry["name"], path=resolve(entry["path"]), invoke=entry["invoke"],
-             default_branch=entry["default_branch"], answer_branch=entry["answer_branch"])
+             default_branch=entry["default_branch"], answer_branch=entry["answer_branch"],
+             holdout=_held(entry))
         for entry in entries])
