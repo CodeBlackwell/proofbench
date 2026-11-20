@@ -145,6 +145,12 @@ use it.
 - On a **repo** corpus, either may be the word `default`. That uses the prompt proofbench
   ships: a judge that returns `recall` and `precision`, and a synth that makes small targeted
   edits.
+- The shipped judge counts an item as fixed only when the change that addresses it leaves the
+  code working. A fix that also breaks behaviour that worked before is ruled not fixed, and
+  the judge says what broke. A separate, unrelated harmful change is a false positive: it
+  lowers `precision` and leaves `recall` alone.
+  The judge decides this from the two diffs alone, with nothing run, so it can be wrong
+  either way: it can miss a breakage, and it can rule one that is not there.
 - On a **question** corpus, `default` is refused. A rubric for answers has to know the subject
   it grades, so you write your own. See `examples/question-demo/judge.md` for the shape.
 

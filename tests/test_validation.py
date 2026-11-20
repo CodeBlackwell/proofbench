@@ -7,6 +7,7 @@ and a misspelt `judge_model` left the weak model grading itself."""
 import json
 import stat
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -240,6 +241,13 @@ def test_a_repo_corpus_can_name_the_prompts_proofbench_ships(tmp_path):
     cfg = config.load(tmp_path / "config.yaml")
     assert "ANSWER_DIFF" in cfg.judge_prompt
     assert "CURRENT_SUBJECT" in cfg.synth_prompt
+
+
+def test_the_shipped_judge_is_told_a_fix_that_breaks_working_code_is_not_a_fix():
+    """Without this line the judge named the breakage in its notes and credited the item anyway,
+    on six of the patches that real projects' tests had failed."""
+    shipped = (Path(config.__file__).parent / "prompts" / "judge.md").read_text()
+    assert "leaves the code working" in shipped and "set fixed_by_agent to false" in shipped
 
 
 def test_a_repo_task_carries_the_paths_it_ignores(tmp_path):

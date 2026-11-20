@@ -18,6 +18,11 @@ Grade by comparing AGENT_DIFF against ANSWER_DIFF:
   GROUND_TRUTH_ITEMS lists them, keeping each id. For each, decide whether
   AGENT_DIFF achieves the same outcome (semantically equivalent, not textually identical).
   Set fixed_by_agent accordingly with one line of evidence.
+- An item is achieved only if the change that addresses it leaves the code working. If that
+  change also breaks behaviour that worked before (it removes or disables a code path other
+  callers rely on, changes results for inputs the item did not concern, or leaves the file
+  unable to load or run), set fixed_by_agent to false and name what broke in the evidence. A
+  separate change elsewhere that does harm does not un-achieve an item: it is a false positive.
 - recall = (ground-truth items the agent achieved) / (total ground-truth items).
 - A false positive is an agent change that neither maps to a ground-truth item nor is a
   reasonable, harmless improvement. Agent-added TEST files are NEUTRAL — never a false positive.
