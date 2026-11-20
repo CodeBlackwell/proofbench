@@ -1,9 +1,9 @@
-# Real corpus config: 3 easy repos + 2 hard benchmark-derived cases, run through crg-debug.
+# Real corpus config: 3 easy repos, 2 benchmark-derived cases and 3 real upstream bugs, run
+# through crg-debug.
 # Fetch first:  bash corpora/fetch.sh
+# Build next:   uv run python corpora/build_hard.py
 # Then:         proofbench run --config corpora/proofbench.yaml
 #
-# The 3 Tier-1 hard cases (cpython-timsort, cpython-asyncio-cond, sudo-baron-samedit)
-# are `pending` in manifest.yaml — add them here once hosted or reconstructed.
 # To self-improve a skill, add `subject:` + `synth:`, set `models` to a weak leg, and mark the
 # tasks the gate scores on `holdout: true` (the rewrite learns from the rest).
 #
@@ -14,7 +14,17 @@
 #     Complete ground truth by construction; scores edit-precision + bug-recall.
 #   - repodebug-gvl-tracing: RepoDebug (EMNLP Findings 2025) C `wrong_return` logic bug
 #     injected into a real Ruby native extension (ivoanjo/gvl-tracing); upstream = fixed ref.
-# Both repos are built locally under repos/ (gitignored) — see corpora/build_hard.py to rebuild.
+#
+# The 3 Tier-1 cases are real upstream fixes, each cut down to the one file the fix changed
+# (`buggy` = that file at the fix commit's parent, `fixed` = at the fix commit; both commits are
+# pinned under `upstream` in manifest.yaml):
+#   - cpython-timsort: merge_collapse checks too few runs to keep its stack invariant
+#     (python/cpython b808d590). A 2 line fix in an 88 KB C file.
+#   - cpython-asyncio-cond: Condition.notify() racing Task.cancel() loses a wakeup
+#     (python/cpython#112202, 6b53d5fe).
+#   - sudo-baron-samedit: heap overflow in set_cmnd's unescape loop (CVE-2021-3156,
+#     sudo-project/sudo 1f863857).
+# All 5 are built locally under repos/ (gitignored) by corpora/build_hard.py.
 runner: claude
 models: [haiku]
 judge_model: opus
@@ -25,8 +35,8 @@ max_turns: 200
 judge: default
 
 # BugFix (already validated via the deterministic Workflow in Round 4) and the duplicate
-# sf-wdi-24 debugging-challenges are excluded. The active sweep is the 5 entries below: 3 of
-# the manifest's easy repos, then the 2 hard cases corpora/build_hard.py builds.
+# sf-wdi-24 debugging-challenges are excluded. The active sweep is the 8 entries below: 3 of
+# the manifest's easy repos, then the 5 hard cases corpora/build_hard.py builds.
 #
 # `ignore` leaves out what an answer branch carries beside the fix (a rebuilt bundle, a rewritten
 # README, a file of answer notes), so recall is not graded on files no agent should reproduce.
@@ -41,3 +51,6 @@ corpus:
   - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution, ignore: ['dist/**', readme.md, src/components/key.md] }
   - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
   - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  - { name: cpython-timsort,                        path: repos/cpython-timsort,                        invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  - { name: cpython-asyncio-cond,                   path: repos/cpython-asyncio-cond,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  - { name: sudo-baron-samedit,                     path: repos/sudo-baron-samedit,                     invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }

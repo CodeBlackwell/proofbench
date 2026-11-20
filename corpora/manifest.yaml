@@ -4,6 +4,7 @@
 # debugging-interview repos plus 3 Tier-1 hard cases. `ready` entries are public repos
 # pinned to exact commits; `bash fetch.sh` clones each into ./repos (gitignored) and
 # materializes the broken default branch at `pin` and the answer branch at `answer_pin`.
+# `upstream` entries are built by build_hard.py from two pinned commits of a larger project.
 #
 # Both sides are pinned so a fetch is reproducible: the same manifest yields the same
 # ground-truth diff, even after upstream moves its answer branch.
@@ -38,28 +39,66 @@ ready:
     pin: 7400054f7add23c2ec401152197c2056f2b3d7a6
     answer_pin: 7b872e18ab281963e487b12f02616c5d77260d7c
 
-# The 3 Tier-1 hard cases, scored individually. Real upstream provenance found (buggy =
-# parent of the fix commit, fixed = the fix commit). Already constructed locally in
-# dawson/ with buggy+fixed branches; URL-listable once hosted or reconstructed from upstream.
-pending:
+# The 3 Tier-1 hard cases: real upstream bugs, each cut down to the one file its fix changed.
+# `buggy` holds that file at the fix commit's parent and `fixed` holds it at the fix commit, so
+# the ground truth is a real fix, pinned on both sides. `readme` is the task statement the
+# original evaluation used, kept word for word so new scores compare with the recorded ones.
+# Build them with:  uv run python corpora/build_hard.py
+upstream:
   - name: cpython-timsort
-    upstream: https://github.com/python/cpython.git
-    provenance: "listsort merge_collapse run-stack invariant (same class as the Java TimSort bug)"
-    default_branch: buggy
-    answer_branch: fixed
-    status: "host dawson copy, or reconstruct buggy=fix^ / fixed=fix from upstream"
+    repo: python/cpython
+    file: Objects/listobject.c
+    parent: 83704963c0d4e7b1474d6102ed6287a7ae4907a8
+    fix: b808d590a24066bc03d21b55ed5e890a012477a8
+    provenance: "listsort merge_collapse run-stack invariant, bpo-23515 (same class as the Java TimSort bug)"
+    readme: |
+      # Debugging Challenge: CPython list sort
+
+      `Objects/listobject.c` is the C implementation of Python's built-in `list`, including
+      `list.sort()` — an adaptive, stable merge sort (timsort). The merge machinery keeps a
+      stack of pending runs that must satisfy a size invariant before runs are merged.
+
+      There is a subtle latent bug in the run-merging logic: for certain patterns of run
+      lengths the stack-size invariant is not actually maintained, which can eventually
+      corrupt the pending-run bookkeeping. Find and fix the bug so the invariant holds for
+      all inputs. The fix is small and local.
+
   - name: cpython-asyncio-cond
-    upstream: https://github.com/python/cpython.git
-    provenance: "Condition.notify vs Task.cancel lost wakeup — python/cpython#112202"
-    default_branch: buggy
-    answer_branch: fixed
-    status: "host dawson copy, or reconstruct from the #112202 fix commit"
+    repo: python/cpython
+    file: Lib/asyncio/locks.py
+    parent: 96bce033c4a4da7112792ba335ef3eb9a3eb0da0
+    fix: 6b53d5fe04eadad76fb3706f0a4cc42d8f19f948
+    provenance: "Condition.notify vs Task.cancel lost wakeup, python/cpython#112202; the fix also touched docs, tests and NEWS, which are left out"
+    readme: |
+      # Debugging Challenge: asyncio synchronization primitives
+
+      `Lib/asyncio/locks.py` implements asyncio's synchronization primitives: `Lock`, `Event`,
+      `Condition`, and `Semaphore`.
+
+      There is a subtle concurrency bug. Although asyncio is single-threaded, awaiting tasks
+      can be cancelled at `await` points, and that interleaves with notification. Under a
+      specific interleaving of `Condition.notify()` and `Task.cancel()` of a waiting task, a
+      wakeup can be lost — a waiter that should have been woken is not, and the notification is
+      consumed rather than re-delivered. Find and fix the bug so no wakeup is lost when a
+      waiter is cancelled.
+
   - name: sudo-baron-samedit
-    upstream: https://github.com/sudo-project/sudo.git
-    provenance: "CVE-2021-3156 heap overflow; fix 1f8638577d0c80a4ff864a2aad80a0d95488e9a8 (+ b301b46b79c6e2a76d530fa36d05992e74952ee8)"
-    default_branch: buggy
-    answer_branch: fixed
-    status: "host dawson copy, or reconstruct buggy=fix^ / fixed=fix from upstream"
+    repo: sudo-project/sudo
+    file: plugins/sudoers/sudoers.c
+    parent: c4d384082fdbc8406cf19e08d05db4cded920a55
+    fix: 1f8638577d0c80a4ff864a2aad80a0d95488e9a8
+    provenance: "CVE-2021-3156 heap overflow in set_cmnd's unescape loop"
+    readme: |
+      # Debugging Challenge: sudo sudoers argument processing
+
+      `plugins/sudoers/sudoers.c` is the core of the sudoers policy plugin. `set_cmnd()` builds
+      the command line, including a loop that unescapes backslash-escaped characters in the
+      user-supplied arguments.
+
+      There is a memory-safety bug in the unescaping logic: under a particular combination of
+      run mode and a specially crafted argument (one ending in a trailing backslash), the copy
+      loop can read and write past the end of the destination buffer (a heap overflow). Find
+      and fix the bug so the argument copy stays within bounds.
 
 # NOT part of the eval. Present in dawson/ but never scored. Listed for reference only;
 # fetch.sh ignores this section.

@@ -1,19 +1,29 @@
-"""Rebuild the two hard, benchmark-derived corpus cases as buggy->fixed git pairs.
+"""Build the hard corpus cases as buggy->fixed git pairs under repos/ (gitignored).
 
-Each case is one published-benchmark instance materialized locally (repos/ is gitignored):
+Two come from published benchmarks, one instance each:
   pdb-multi-shortest-substring  PDB-Multi 3692_41 (arXiv 2604.17338) — 3 bugs, complete GT.
   repodebug-gvl-tracing         RepoDebug (EMNLP 2025) C wrong_return; upstream = fixed ref.
 
-Run:  python3 corpora/build_hard.py
+Three are real upstream fixes, listed under `upstream` in manifest.yaml and pinned there to the
+fix commit and its parent: cpython-timsort, cpython-asyncio-cond, sudo-baron-samedit.
+
+Run:  uv run python corpora/build_hard.py            every case
+      uv run python corpora/build_hard.py NAME ...   only the cases named
 """
 import json
 import subprocess
+import sys
 import urllib.request
+from functools import partial
 from pathlib import Path
 
-REPOS = Path(__file__).resolve().parent / "repos"
+import yaml
+
+HERE = Path(__file__).resolve().parent
+REPOS = HERE / "repos"
 PDB = "https://datasets-server.huggingface.co/rows?dataset=Precise-Debugging-Benchmarking%2FPDB-Multi&config=default&split=test&offset={off}&length=100"
 RD = "https://raw.githubusercontent.com/BUAA-IRIP-LLM/RepoDebug/main/data/c.json"
+RAW = "https://raw.githubusercontent.com/{repo}/{commit}/{file}"
 
 
 def _get(url):
@@ -29,7 +39,7 @@ def _git(repo, *args):
 def build(name, fname, buggy, fixed, readme):
     repo = REPOS / name
     subprocess.run(["rm", "-rf", str(repo)], check=True)
-    repo.mkdir(parents=True)
+    (repo / fname).parent.mkdir(parents=True)
     _git(repo, "init", "-q", "-b", "buggy")
     _git(repo, "config", "user.email", "corpus@proofbench.local")
     _git(repo, "config", "user.name", "proofbench corpus")
@@ -68,7 +78,7 @@ def apply_perturbation(upstream, diff):
     return upstream.replace(rem, add, 1)
 
 
-def main():
+def build_pdb():
     p = pdb_instance()
     build("pdb-multi-shortest-substring", "solution.py",
           p["buggy_code"].rstrip() + "\n", p["gt_solution"].rstrip() + "\n",
@@ -76,6 +86,8 @@ def main():
           f"({p['task_id']}, {p['bug_count']} injected bugs).\n\n## Spec\n\n"
           + p["task_prompt"].strip() + "\n")
 
+
+def build_repodebug():
     r = repodebug_instance()
     upstream = _get(f"https://raw.githubusercontent.com/{r['repo_name']}/HEAD/{r['file_path']}")
     build("repodebug-gvl-tracing", r["file_path"].split("/")[-1],
@@ -84,5 +96,30 @@ def main():
           "(RepoDebug, EMNLP 2025). Exactly one functional bug was injected.\n")
 
 
+BENCHMARKS = {"pdb-multi-shortest-substring": build_pdb, "repodebug-gvl-tracing": build_repodebug}
+
+
+def upstream_cases():
+    return yaml.safe_load((HERE / "manifest.yaml").read_text())["upstream"]
+
+
+def build_upstream(case):
+    """One file of a real project, as it stood just before a fix and just after it. Both
+    commits are pinned in the manifest, so the ground truth cannot move with upstream."""
+    at = partial(RAW.format, repo=case["repo"], file=case["file"])
+    build(case["name"], case["file"], _get(at(commit=case["parent"])),
+          _get(at(commit=case["fix"])), case["readme"])
+
+
+def main(wanted):
+    builders = {**BENCHMARKS,
+                **{case["name"]: partial(build_upstream, case) for case in upstream_cases()}}
+    unknown = sorted(set(wanted) - set(builders))
+    if unknown:
+        raise SystemExit(f"no such case: {unknown}; known: {sorted(builders)}")
+    for name in wanted or builders:
+        builders[name]()
+
+
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

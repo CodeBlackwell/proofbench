@@ -6,9 +6,16 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SKIPPED = {".venv", "runs", "repos", "dist", "node_modules", ".pytest_cache"}
-PAGES = sorted(page for page in ROOT.rglob("*.md")
-               if not SKIPPED & set(page.relative_to(ROOT).parts))
+SKIPPED = {"runs", "repos", "dist", "node_modules"}
+
+
+def is_ours(page):
+    """Not a page under a hidden folder (a tool's cache or scratch space) or a build folder."""
+    parts = page.relative_to(ROOT).parts
+    return not SKIPPED & set(parts) and not any(part.startswith(".") for part in parts)
+
+
+PAGES = sorted(page for page in ROOT.rglob("*.md") if is_ours(page))
 LINK = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE = re.compile(r"^```.*?^```", re.DOTALL | re.MULTILINE)
 

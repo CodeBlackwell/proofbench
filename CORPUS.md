@@ -140,3 +140,12 @@ real task this scored an agent that fixed both bugs at 0.40 recall, because thre
 
 `corpora/manifest.yaml` and `corpora/fetch.sh` show the pattern: each entry has a `pin` for
 the default branch and an `answer_pin` for the answer branch.
+
+**A real fix makes a good task.** Take a merged bug fix from a real project:
+
+- The commit just before the fix is the broken state.
+- The fix commit is the answer.
+- If the project is large, cut the task down to the files the fix changed.
+
+`corpora/build_hard.py` builds three tasks this way, from the `upstream` entries in the
+manifest. Each names a project, one file, the fix commit and its parent.
