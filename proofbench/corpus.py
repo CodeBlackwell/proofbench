@@ -1,10 +1,13 @@
 """The corpus half of a config: what the tasks are, and the entries that are refused."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .util import die
 
 TASK_KEYS = ("name", "path", "invoke", "default_branch", "answer_branch")
+# The keys an entry may carry beside the ones it must. A misspelt `holdout` or `ignore` would
+# otherwise be dropped in silence and the run would grade something other than what was asked.
+OPTIONAL = {"repo": {"kind", "holdout", "ignore"}, "question": {"kind", "holdout"}}
 
 
 @dataclass
@@ -15,6 +18,7 @@ class Task:
     default_branch: str  # the broken / initial state
     answer_branch: str   # the ground-truth fixed state
     holdout: bool = False  # scored by the optimize gate, never shown to the synth
+    ignore: list = field(default_factory=list)  # path patterns left out of both diffs
 
 
 @dataclass
@@ -27,6 +31,15 @@ class QuestionSet:
 def _held(entry):
     held = entry.get("holdout", False)
     return held if isinstance(held, bool) else die(f"holdout must be true or false: {entry}")
+
+
+def _ignored(entry):
+    """Paths the answer branch touches that are not the fix: a rebuilt bundle, a README, a file
+    of notes. Left in, each is an item no agent should reproduce, and recall is graded on it."""
+    paths = entry.get("ignore", [])
+    if not isinstance(paths, list) or any(not isinstance(one, str) for one in paths):
+        die(f"ignore must be a list of path patterns: {entry}")
+    return paths
 
 
 def _question_file(path):
@@ -43,11 +56,14 @@ def _refuse_shared_names(tasks):
     return tasks
 
 
-def _need(entries, keys):
+def _need(entries, keys, optional):
     for entry in entries:
         missing = [key for key in keys if key not in entry]
+        unknown = sorted(set(entry) - set(keys) - optional)
         if missing:
             die(f"corpus entry {entry} is missing {missing}")
+        if unknown:
+            die(f"corpus entry {entry} carries keys proofbench does not read: {unknown}")
 
 
 def read_corpus(entries, resolve):
@@ -58,14 +74,14 @@ def read_corpus(entries, resolve):
     if len(kinds) > 1:
         die(f"corpus mixes task kinds: {sorted(kinds)}")
     kind = kinds.pop()
-    _need(entries, ("file",) if kind == "question" else TASK_KEYS if kind == "repo" else ())
+    if kind not in OPTIONAL:
+        die(f"unknown corpus kind: {kind}")
+    _need(entries, ("file",) if kind == "question" else TASK_KEYS, OPTIONAL[kind])
     if kind == "question":
         return kind, [QuestionSet(name=Path(entry["file"]).stem, holdout=_held(entry),
                                   path=_question_file(resolve(entry["file"]))) for entry in entries]
-    if kind != "repo":
-        die(f"unknown corpus kind: {kind}")
     return kind, _refuse_shared_names([
         Task(name=entry["name"], path=resolve(entry["path"]), invoke=entry["invoke"],
              default_branch=entry["default_branch"], answer_branch=entry["answer_branch"],
-             holdout=_held(entry))
+             holdout=_held(entry), ignore=_ignored(entry))
         for entry in entries])

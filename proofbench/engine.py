@@ -17,9 +17,17 @@ def _ground_truth(cfg, run_dir):
     for task in cfg.corpus:
         d = run_dir / "_ground-truth" / task.name
         d.mkdir(parents=True, exist_ok=True)
-        gt[task.name] = capture.ground_truth(task.path, task.default_branch, task.answer_branch)
+        gt[task.name] = capture.ground_truth(task.path, task.default_branch, task.answer_branch,
+                                             task.ignore)
         (d / "answer.diff").write_text(gt[task.name][1])
     return gt
+
+
+def _read_readme(work):
+    """The task description the judge is shown, matched in any case. A repo that names the
+    file readme.md used to reach the judge with no description at all."""
+    found = sorted(p for p in work.iterdir() if p.is_file() and p.name.lower().startswith("readme"))
+    return found[0].read_text(errors="replace") if found else ""
 
 
 def _attempt(cfg, task, model, baseline, out_dir):
@@ -28,10 +36,10 @@ def _attempt(cfg, task, model, baseline, out_dir):
     README is the one the baseline commit holds, read before the agent can touch it."""
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
         work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
-        readme = next((p.read_text() for p in sorted(work.glob("README*")) if p.is_file()), "")
+        readme = _read_readme(work)
         meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work,
                           out_dir / "run.log", cfg.timeout_minutes)
-        return readme, meta, capture.capture(work, baseline)
+        return readme, meta, capture.capture(work, baseline, task.ignore)
 
 
 def _run_and_grade(cfg, task, model, gt, out_dir):

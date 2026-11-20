@@ -79,3 +79,37 @@ def test_a_git_failure_while_capturing_is_a_hard_stop(tmp_path):
     with pytest.raises(HarnessError):
         capture.capture(tmp_path, "0" * 40)
     assert subprocess.run(["git", "-C", str(tmp_path), "status"], capture_output=True).returncode
+
+
+@pytest.fixture
+def noisy(repo):
+    """The answer branch also carries a rebuilt bundle and a notes file: neither is the fix."""
+    git(repo, "checkout", "-q", "fixed")
+    (repo / "dist").mkdir()
+    (repo / "dist" / "bundle.js").write_text("built\n")
+    (repo / "notes.md").write_text("the answers\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "rebuild and notes")
+    git(repo, "checkout", "-q", "buggy")
+    return repo
+
+
+def test_ignored_paths_are_left_out_of_the_answer(noisy):
+    _, answer = capture.ground_truth(noisy, "buggy", "fixed", ["dist/**", "notes.md"])
+    assert "+x = 2" in answer
+    assert "bundle.js" not in answer and "notes.md" not in answer
+
+
+def test_ignored_paths_are_left_out_of_what_the_agent_changed(noisy, tmp_path):
+    baseline, _ = capture.ground_truth(noisy, "buggy", "fixed", ["dist/**"])
+    work = capture.workspace(noisy, "buggy", baseline, tmp_path / "work")
+    (work / "a.py").write_text("x = 2\n")
+    (work / "dist").mkdir()
+    (work / "dist" / "bundle.js").write_text("rebuilt by the agent\n")
+    diff = capture.capture(work, baseline, ["dist/**"])
+    assert "+x = 2" in diff and "bundle.js" not in diff
+
+
+def test_ignoring_everything_the_answer_changes_is_a_hard_stop(noisy):
+    with pytest.raises(HarnessError, match="no ground truth"):
+        capture.ground_truth(noisy, "buggy", "fixed", ["**"])

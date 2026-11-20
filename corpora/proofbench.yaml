@@ -28,13 +28,16 @@ judge: default
 # sf-wdi-24 debugging-challenges are excluded. The active sweep is the 5 entries below: 3 of
 # the manifest's easy repos, then the 2 hard cases corpora/build_hard.py builds.
 #
+# `ignore` leaves out what an answer branch carries beside the fix (a rebuilt bundle, a rewritten
+# README, a file of answer notes), so recall is not graded on files no agent should reproduce.
+#
 # invoke drives the crg-debugger SUBAGENT (sequential, single in-context session), not the
 # background /crg-debug Workflow: the subagent honors --model haiku and applies fixes
 # synchronously, so capture sees a real git diff to grade. The background Workflow returns a
 # detection report and lands no diff headless, and runs its own internal models.
 corpus:
-  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working }
+  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working, ignore: [README.md, 'assets/**'] }
   - { name: ph2-raccoon-saloon-debugging-challenge, path: repos/ph2-raccoon-saloon-debugging-challenge, invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: main,   answer_branch: solution }
-  - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution }
+  - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution, ignore: ['dist/**', readme.md, src/components/key.md] }
   - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
   - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }

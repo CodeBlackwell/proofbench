@@ -21,6 +21,9 @@ BASE = {"models": "[stub]", "judge": "judge.md", "runner": "arm.py",
         "corpus": "\n  - {kind: question, file: questions.jsonl}"}
 
 
+REPO_ENTRY = "\n  - {name: primes, path: ., invoke: fix, default_branch: buggy, answer_branch: fixed"
+
+
 def write_arm(directory, reply=RESULT):
     arm = directory / "arm.py"
     arm.write_text(f"#!/usr/bin/env python3\nprint({json.dumps(json.dumps(reply))})\n")
@@ -55,6 +58,9 @@ def load(directory, questions=(QUESTION,), **keys):
     ({"timeout_minutes": "0"}, "timeout_minutes"),
     ({"corpus": "\n  - {kind: question}"}, "file"),
     ({"corpus": "\n  - {name: primes, path: .}"}, "invoke"),
+    ({"corpus": REPO_ENTRY + ", ignore: dist}"}, "ignore"),
+    ({"corpus": REPO_ENTRY + ", hold_out: true}"}, "hold_out"),
+    ({"corpus": "\n  - {kind: question, file: questions.jsonl, holdout: yes please}"}, "holdout"),
 ])
 def test_a_config_that_could_only_fail_later_is_refused_at_load(tmp_path, keys, says):
     with pytest.raises(HarnessError, match=says):
@@ -223,6 +229,12 @@ def test_a_repo_corpus_can_name_the_prompts_proofbench_ships(tmp_path):
     cfg = config.load(tmp_path / "config.yaml")
     assert "ANSWER_DIFF" in cfg.judge_prompt
     assert "CURRENT_SUBJECT" in cfg.synth_prompt
+
+
+def test_a_repo_task_carries_the_paths_it_ignores(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        f"models: [weak]\njudge: default\ncorpus:{REPO_ENTRY}, ignore: ['dist/**', notes.md]}}\n")
+    assert config.load(tmp_path / "config.yaml").corpus[0].ignore == ["dist/**", "notes.md"]
 
 
 def test_a_question_corpus_is_shipped_no_prompt_and_has_to_bring_its_own(tmp_path):

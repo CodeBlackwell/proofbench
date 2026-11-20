@@ -10,6 +10,8 @@ import pytest
 from proofbench import config, engine, judge, runner
 from proofbench.util import HarnessError
 
+from .conftest import git
+
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
 FIXED = "def is_prime(n):\n    return n > 1 and all(n % i for i in range(2, int(n ** 0.5) + 1))\n"
 
@@ -106,3 +108,36 @@ def test_two_tasks_sharing_a_name_are_refused(tmp_path):
     (tmp_path / "config.yaml").write_text("models: [weak]\njudge: judge.md\ncorpus:\n" + entry * 2)
     with pytest.raises(HarnessError, match="not unique"):
         config.load(tmp_path / "config.yaml")
+
+
+def test_a_task_s_ignored_paths_reach_neither_side_of_the_grade(repo, tmp_path, monkeypatch):
+    git(repo, "checkout", "-q", "fixed")
+    (repo / "notes.md").write_text("the answers\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "notes")
+    git(repo, "checkout", "-q", "buggy")
+    graded = {}
+
+    def fake_run(runner_name, invoke, model, max_turns, cwd, log_path, timeout_minutes=None):
+        (Path(cwd) / "notes.md").write_text("the agent wrote notes too\n")
+        (Path(cwd) / "a.py").write_text("x = 2\n")
+        return {"seconds": 0, "cost_usd": None, "turns": None}
+    monkeypatch.setattr(runner, "run", fake_run)
+    monkeypatch.setattr(judge, "grade", lambda prompt, readme, answer, agent_diff, model:
+                        graded.update(answer=answer, agent=agent_diff) or {"recall": 1.0})
+    cfg = _repo_config(repo, {"only": "fix it"})
+    cfg.corpus[0].ignore = ["notes.md"]
+    engine.bench(cfg, tmp_path / "run", cfg.models)
+    assert "+x = 2" in graded["answer"] and "+x = 2" in graded["agent"]
+    assert "notes.md" not in graded["answer"] and "notes.md" not in graded["agent"]
+
+
+def test_a_readme_named_in_lower_case_still_reaches_the_judge(repo, tmp_path, monkeypatch):
+    git(repo, "mv", "README.md", "readme.md")
+    git(repo, "commit", "-qm", "lower case readme")
+    readmes = []
+    monkeypatch.setattr(runner, "run", lambda *args: {"seconds": 0, "cost_usd": None, "turns": None})
+    monkeypatch.setattr(judge, "grade", lambda prompt, readme, *rest: readmes.append(readme) or {"recall": 0})
+    cfg = _repo_config(repo, {"only": "do nothing"})
+    engine.bench(cfg, tmp_path / "run", cfg.models)
+    assert readmes == ["Fix x.\n"]

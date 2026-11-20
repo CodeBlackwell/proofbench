@@ -34,14 +34,21 @@ def _pin(repo, ref):
     return _git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
 
 
-def ground_truth(repo, default_branch, answer_branch):
+def _leave_out(patterns):
+    return [f":(exclude,glob){pattern}" for pattern in patterns]
+
+
+def ground_truth(repo, default_branch, answer_branch, ignore=()):
     """The baseline commit and the answer diff, both read once before any agent runs. The
     baseline travels as a commit and never as a branch name, because an agent can move a
-    branch. A path inside some other repo is refused: git would answer for that outer repo."""
+    branch. A path inside some other repo is refused: git would answer for that outer repo.
+    A task's ignored paths are left out, here and in capture, so neither side is graded on
+    them."""
     if not Path(_git(repo, "rev-parse", "--show-toplevel").strip()).samefile(repo):
         die(f"{repo} is not the root of a git repository")
     baseline = _pin(repo, default_branch)
-    answer = _git(repo, "diff", baseline, _pin(repo, answer_branch))
+    answer = _git(repo, "diff", baseline, _pin(repo, answer_branch), "--", ".",
+                  *_leave_out(ignore))
     return baseline, answer or die(
         f"{answer_branch} changes nothing against {default_branch} in {repo}: no ground truth")
 
@@ -57,9 +64,9 @@ def workspace(repo, default_branch, baseline, dest):
     return dest
 
 
-def capture(repo, baseline):
+def capture(repo, baseline, ignore=()):
     """Diff against the baseline commit, not the working tree: agents may commit their fixes,
     on a detached HEAD or on the branch itself, and the commit id is the one ref they cannot
     move. add -N puts new files in the diff."""
     _git(repo, "add", "-N", ".")
-    return _git(repo, "diff", baseline, "--", ".", *_EXCLUDES)
+    return _git(repo, "diff", baseline, "--", ".", *_EXCLUDES, *_leave_out(ignore))
