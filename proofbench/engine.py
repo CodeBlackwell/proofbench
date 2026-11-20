@@ -29,7 +29,8 @@ def _attempt(cfg, task, model, baseline, out_dir):
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
         work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
         readme = next((p.read_text() for p in sorted(work.glob("README*")) if p.is_file()), "")
-        meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work, out_dir / "run.log")
+        meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work,
+                          out_dir / "run.log", cfg.timeout_minutes)
         return readme, meta, capture.capture(work, baseline)
 
 

@@ -1,10 +1,11 @@
 """proofbench {run|optimize} — config-driven eval and self-improvement for agent skills."""
 import argparse
 import sys
+import time
 from pathlib import Path
 
 from . import config, engine, optimize, scoreboard
-from .util import HarnessError, log
+from .util import HarnessError, die, log
 
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
 # stubbed and is_measured lead, so the one line a reader takes away from a run says whether the
@@ -40,8 +41,21 @@ def _report_questions(model, leg):
         print(scoreboard.grid(leg["records"], "tier", "hops", every_time), file=sys.stderr)
 
 
+def run_dir(run_id):
+    """Where this run writes. A folder is never reused: what an earlier run left in it would be
+    read as this run's, and optimize would learn from grades of tasks no longer in the corpus.
+    With no --run-id the folder is named for the moment the run started."""
+    chosen = Path("runs") / (run_id or time.strftime("%Y%m%d-%H%M%S"))
+    while run_id is None and chosen.exists():
+        chosen = chosen.with_name(chosen.name + "+")
+    if chosen.exists() and any(chosen.iterdir()):
+        die(f"{chosen} already holds a run; pass another --run-id or remove it")
+    log(f"writing to {chosen}")
+    return chosen
+
+
 def cmd_run(cfg, args):
-    board = engine.bench(cfg, Path("runs") / args.run_id, cfg.models)
+    board = engine.bench(cfg, run_dir(args.run_id), cfg.models)
     for model, leg in board.items():
         if cfg.kind == "question":
             _report_questions(model, leg)
@@ -51,7 +65,7 @@ def cmd_run(cfg, args):
 
 
 def cmd_optimize(cfg, args):
-    optimize.optimize(cfg, Path("runs") / args.run_id)
+    optimize.optimize(cfg, run_dir(args.run_id))
 
 
 def main():
@@ -59,7 +73,7 @@ def main():
     parser.add_argument("command", choices=["run", "optimize"])
     parser.add_argument("--config")
     parser.add_argument("--demo", action="store_true")
-    parser.add_argument("--run-id", default="run")
+    parser.add_argument("--run-id", help="folder under runs/; defaults to the start time")
     args = parser.parse_args()
     try:
         cfg = config.load(_config_path(args))

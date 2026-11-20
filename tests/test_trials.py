@@ -97,6 +97,7 @@ class TrialsConfig(unittest.TestCase):
         (root / "judge.md").write_text("grade it")
         (root / "questions.jsonl").write_text("{}\n")
         (root / "arm.py").write_text("")
+        (root / "arm.py").chmod(0o755)
         (root / "config.yaml").write_text("models: [stub]\njudge: judge.md\nrunner: arm.py\n" + body)
         return config.load(root / "config.yaml")
 

@@ -20,7 +20,7 @@ def test_bench_wires_end_to_end(tmp_path, monkeypatch):
     cfg = config.load(DEMO)
 
     # stub runner: a "perfect agent" that applies a correct fix to lib.py in the repo
-    def fake_run(runner_name, invoke, model, max_turns, cwd, log_path):
+    def fake_run(runner_name, invoke, model, max_turns, cwd, log_path, timeout_minutes=None):
         (Path(cwd) / "lib.py").write_text(FIXED)
         Path(log_path).write_text("stub")
         return {"seconds": 1.0, "cost_usd": 0.01, "turns": 2}
@@ -54,7 +54,7 @@ def bench_two_tasks(repo, tmp_path, monkeypatch):
     recall 1 exactly when the diff holds the fix, so an empty diff is graded 0, never skipped."""
     seen = {"cwds": [], "readmes": []}
 
-    def fake_run(runner_name, invoke, model, max_turns, cwd, log_path):
+    def fake_run(runner_name, invoke, model, max_turns, cwd, log_path, timeout_minutes=None):
         seen["cwds"].append(Path(cwd))
         if invoke == "fix it":
             (Path(cwd) / "a.py").write_text("x = 2\n")

@@ -13,9 +13,25 @@ from . import judge, runner, scoreboard
 from .util import die, log
 
 
+# The fields the grade and the grid read, and the type each has to be. A question without one
+# would stop the leg only after its arm had been paid for.
+REQUIRED = {"id": str, "text": str, "answer": list, "answerable": bool, "tier": int, "hops": int}
+
+
+def _read_line(path, number, line):
+    try:
+        record = json.loads(line)
+    except json.JSONDecodeError as err:
+        die(f"{path}:{number} is not JSON: {err}")
+    wrong = [field for field, kind in REQUIRED.items()
+             if not isinstance(record, dict) or not isinstance(record.get(field), kind)]
+    return record if not wrong else die(f"{path}:{number} is missing or mistypes {wrong}")
+
+
 def load(path):
     """One question per line, in the shape the study's question format fixes."""
-    questions = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    lines = enumerate(path.read_text().splitlines(), 1)
+    questions = [_read_line(path, number, line) for number, line in lines if line.strip()]
     return questions or die(f"question file holds no questions: {path}")
 
 
@@ -50,7 +66,8 @@ def _ask_and_grade(cfg, question, trial, model, out_dir):
     """The arm's own report of how it answered travels with the grade. An arm that says it read
     a canned reply is the only thing downstream can learn that from, so dropping "stubbed" here
     is what let a canned leg reach the registry looking like a measurement."""
-    result = runner.ask(cfg.runner, model, question, out_dir / "run.log", cfg.runner_args)
+    result = runner.ask(cfg.runner, model, question, out_dir / "run.log", cfg.runner_args,
+                        cfg.timeout_minutes)
     record = {"id": question["id"], "trial": trial,
               **grade_one(cfg, question, result, cfg.judge_model),
               "abstained": bool(result["abstained"]),
@@ -113,10 +130,21 @@ def _refuse_shared_ids(questions):
         die(f"question ids are not unique: {shared}")
 
 
+def _refuse_off_the_grid(questions):
+    """The grid is printed after the run, so a question it has no cell for is refused here,
+    before the run is spent."""
+    axes = scoreboard.STRATIFICATION
+    outside = sorted(question["id"] for question in questions
+                     if any(question[field] not in axes[field] for field in axes))
+    if outside:
+        die(f"questions sit outside the stratification {axes}: {outside}")
+
+
 def bench(cfg, run_dir, models):
     """The question leg of the bench, one leg per answering model, mirroring engine.bench."""
     questions = [question for task in cfg.corpus for question in load(task.path)]
     _refuse_shared_ids(questions)
+    _refuse_off_the_grid(questions)
     board = {model: _leg(cfg, questions, model, run_dir) for model in models}
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "scoreboard.json").write_text(json.dumps(board, indent=2))

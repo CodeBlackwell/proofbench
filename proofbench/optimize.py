@@ -41,9 +41,12 @@ def _synth(cfg, run_dir, model, leg):
               f"===== GRADES =====\n{grades}\n\n"
               f"===== CURRENT_SUBJECT =====\n{cfg.subject.read_text()}\n")
     result = claude_json(prompt, cfg.synth_model)
-    candidate = result.get("subject") or die("synth produced no subject")
+    candidate, changelog = result.get("subject"), result.get("changelog", "")
+    if not isinstance(candidate, str) or not candidate.strip():
+        die("synth produced no subject")
     (run_dir / "subject.candidate").write_text(candidate)
-    (run_dir / "changelog.md").write_text(result.get("changelog", ""))
+    (run_dir / "changelog.md").write_text(
+        changelog if isinstance(changelog, str) else json.dumps(changelog, indent=2))
     return candidate
 
 
@@ -70,6 +73,8 @@ def _try_candidate(cfg, run_dir, model, candidate, base_score):
 def optimize(cfg, run_dir):
     if not cfg.can_optimize:
         die("optimize needs both `subject` and `synth` in config")
+    if cfg.objective is None:
+        die("optimize needs an `objective` in config: the number the gate compares")
     model = cfg.models[-1]  # the weak leg is the optimization target — only misses teach
     log(f"baseline on weak leg [{model}]")
     baseline = engine.bench(cfg, run_dir / "baseline", [model])[model]

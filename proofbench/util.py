@@ -17,6 +17,23 @@ def log(message):
     print(f"\033[36m[proofbench]\033[0m {message}", file=sys.stderr)
 
 
+def spawn(argv, minutes=None, **kwargs):
+    """Start a child and wait for it. A child that cannot start, or that outlives its limit, is
+    a failed measurement: it is said in one line, and the run never waits on it for ever. Bytes
+    that are not UTF-8 are replaced, never raised on, because a diff or a log may hold any."""
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, errors="replace",
+                              timeout=minutes * 60 if minutes else None, **kwargs)
+    except OSError as err:
+        die(f"cannot start {argv[0]}: {err}")
+    except subprocess.TimeoutExpired:
+        die(f"{argv[0]} ran past its limit of {minutes} minutes")
+
+
+def _refuse_constant(name):
+    die(f"LLM result holds {name}, which is not a number a grade can carry")
+
+
 def extract_json(envelope):
     """Parse a `claude --output-format json` envelope's `.result`, tolerant of a prose
     preamble or markdown fences by slicing the first '{' to the last '}'. Fail loud at
@@ -27,16 +44,31 @@ def extract_json(envelope):
         result = json.loads(envelope)["result"]
     except (json.JSONDecodeError, KeyError, TypeError):
         die("LLM envelope was not valid `--output-format json`")
-    match = re.search(r"\{.*\}", result, re.DOTALL)
+    match = re.search(r"\{.*\}", result, re.DOTALL) if isinstance(result, str) else None
     if not match:
         die("no JSON object found in LLM result")
     try:
-        return json.loads(match.group(0))
+        return json.loads(match.group(0), parse_constant=_refuse_constant)
     except json.JSONDecodeError:
         die("LLM result was not valid JSON")
 
 
+# A judge or synth call is one reply with no tools, so a quarter of an hour means it hung.
+CLAUDE_MINUTES = 15
+
+
 def claude_json(prompt, model):
+    """Ask claude for one JSON object, and ask once more if the first reply was not one. A
+    judge that narrated instead of grading has produced nothing to average around, so asking
+    again changes no number, and it keeps one flake from costing a whole leg of agent runs."""
+    try:
+        return _ask_claude(prompt, model)
+    except HarnessError as first:
+        log(f"claude gave no usable object ({first}); asking once more")
+        return _ask_claude(prompt, model)
+
+
+def _ask_claude(prompt, model):
     """Call claude headless and return the parsed JSON object it produced.
 
     The prompt goes on STDIN, never argv: an embedded diff can exceed ARG_MAX and
@@ -46,10 +78,9 @@ def claude_json(prompt, model):
     tools (--tools "") and none of the launching user's CLAUDE.md, hooks, plugins or MCP servers
     (--safe-mode). A grade must not depend on where proofbench was started, and a diff must not
     be able to instruct a process that can act."""
-    proc = subprocess.run(
+    proc = spawn(
         ["claude", "-p", "--model", model, "--tools", "", "--safe-mode", "--output-format", "json"],
-        input=prompt, capture_output=True, text=True,
-    )
+        CLAUDE_MINUTES, input=prompt)
     if proc.returncode != 0:
         die(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:300]}")
     return extract_json(proc.stdout)

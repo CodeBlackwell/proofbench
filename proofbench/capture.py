@@ -5,10 +5,9 @@ branch." The corpus repo is only ever read. The agent works in a throwaway clone
 the broken branch alone, so the answer is not in it and nothing the agent does outlives the
 attempt. Dependency and cache trees are excluded from the diff: they are never the agent's fix
 and can balloon the judge prompt past ARG_MAX."""
-import subprocess
 from pathlib import Path
 
-from .util import die
+from .util import die, spawn
 
 _EXCLUDES = [":(exclude,glob)**/node_modules/**", ":(exclude,glob)**/.venv/**",
              ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/.code-review-graph/**"]
@@ -25,7 +24,7 @@ _EXCLUDES += [f":(exclude,glob){p}" for p in (
 def _git(repo, *args):
     """Every call here decides what gets graded, so a git failure is fatal. Read as empty
     output it would become an empty answer key or an agent that seemed to change nothing."""
-    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    proc = spawn(["git", "-C", str(repo), *args])
     if proc.returncode != 0:
         die(f"git {' '.join(args)} failed in {repo}: {proc.stderr.strip()}")
     return proc.stdout

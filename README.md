@@ -54,6 +54,7 @@ judge_model: opus                               # held constant; never let a mod
 objective: macro_recall                         # the metric the keep/revert gate reads
 judge: prompts/judge.md
 synth: prompts/synth.md                          # present => `optimize` is available
+timeout_minutes: 60                             # optional; one attempt running longer stops the run
 corpus:
   - name: primes
     path: examples/sample-corpus/repos/primes
@@ -66,6 +67,14 @@ corpus:
 proofbench run      --config proofbench.yaml    # eval + scoreboard
 proofbench optimize --config proofbench.yaml    # baseline -> synth -> re-run -> keep|revert
 ```
+
+Each run writes to its own folder, `runs/<start time>/`, or `runs/<run-id>/` with `--run-id`. A
+folder that already holds a run is refused, so one run's files are never read as another's.
+
+The config is checked whole before anything is paid for. A key proofbench does not read, a
+`models` that is not a list, a file that does not exist, or an objective the gate cannot
+compare is a hard stop at load. `models` is ordered strongest first: `judge_model` and
+`synth_model` default to the first entry, and `optimize` rewrites against the last.
 
 ### Two task kinds
 
@@ -97,7 +106,13 @@ reproducible from the config alone. A repo task is invoked `<runner> <invoke> <m
 nowhere to put them, so carrying them there is a hard stop.
 
 The arm prints `{answer, answer_ids, abstained, tokens_in, tokens_out, cost_usd, seconds,
-chunks, path}`; the last four are logged, the rest are required and a missing one is fatal.
+chunks, path}`. `answer_ids` (a list), `abstained` (true or false) and the two token counts
+(numbers) are required, and a missing or mistyped one is fatal; the rest are logged. An arm
+may also report `stubbed` and `model`, which the scoreboard's provenance line reads.
+
+Every question needs `id`, `text`, `answer`, `answerable`, `tier` and `hops`, with `tier` and
+`hops` on the stratification grid. The question file is checked before any arm is asked, and
+a line that fails is named by its number.
 Grading is an exact match on `answer_ids` after normalisation first, and the judge only when
 prose or a number written as words has to be read. An abstention is correct exactly when the
 question's `answerable` is false.
@@ -147,7 +162,7 @@ What changes with trials:
 - A leg that measured only abstention carries the curve as `abstention_pass^k` and
   `abstention_pass@k`, for the same reason it carries no key named accuracy.
 
-Hard stops: an objective naming a k above `trials`, two questions sharing an id, questions
+Hard stops: an objective naming a k above `trials` or one the gate has no direction for, two questions sharing an id, questions
 asked unequal numbers of times, and `trials` on a repo corpus, which has no right or wrong
 grade per attempt to count.
 
