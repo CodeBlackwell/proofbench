@@ -242,12 +242,13 @@ def test_a_question_corpus_is_shipped_no_prompt_and_has_to_bring_its_own(tmp_pat
         load(tmp_path, judge="default")
 
 
-def test_the_cli_reports_the_version_the_package_was_built_as(capsys, monkeypatch):
-    import importlib.metadata
+def test_the_cli_reports_the_version_written_in_the_package(capsys, monkeypatch):
+    """The build reads its version from this same string, so the two cannot disagree. The
+    installed metadata is not compared here: an editable install keeps the version it was
+    installed at, and a bump would fail this test on every machine but a fresh one."""
     import proofbench
     monkeypatch.setattr("sys.argv", ["proofbench", "--version"])
     with pytest.raises(SystemExit) as stopped:
         cli.main()
     assert stopped.value.code == 0
     assert capsys.readouterr().out.strip() == f"proofbench {proofbench.__version__}"
-    assert proofbench.__version__ == importlib.metadata.version("proofbench")
