@@ -156,6 +156,15 @@ grade per attempt to count.
 misses, re-runs, and keeps the rewrite only if the objective did not regress. The decision is
 the harness comparing two numbers, never the model's own claim of success.
 
+The comparison runs in the objective's own direction: a higher rate, recall or `pass^k` is
+kept, and so is a lower `tokens_per_correct`.
+
+On a question corpus the rewrite is shown only the questions the weak leg got wrong on at least
+one trial: the question, the expected answer, and what each trial answered. A baseline with
+nothing wrong is a hard stop before the rewrite, since there is nothing to learn from. The
+baseline and the re-run use the same questions, so a gain can be the subject fitting those
+questions. Check a kept rewrite on a question file the loop never saw.
+
 ## Adapters
 
 - **Runner** (`runner:`): `claude` is built in. Any other value is an executable invoked as

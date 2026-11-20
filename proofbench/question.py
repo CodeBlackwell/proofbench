@@ -54,6 +54,7 @@ def _ask_and_grade(cfg, question, trial, model, out_dir):
     record = {"id": question["id"], "trial": trial,
               **grade_one(cfg, question, result, cfg.judge_model),
               "abstained": bool(result["abstained"]),
+              "answer_ids": result["answer_ids"], "answer": result.get("answer"),
               "answerable": bool(question["answerable"]),
               "tokens_in": result["tokens_in"], "tokens_out": result["tokens_out"],
               "cost_usd": result.get("cost_usd"), "seconds": result.get("seconds"),
@@ -82,6 +83,25 @@ def _leg(cfg, questions, model, run_dir):
     (run_dir / model).mkdir(parents=True, exist_ok=True)
     (run_dir / model / "scoreboard.json").write_text(json.dumps(leg, indent=2))
     return leg
+
+
+def describe_misses(records):
+    """What a rewrite of the subject can learn from: every question the arm got wrong at least
+    once, with what was expected and what each trial answered. A question answered right on
+    every trial teaches nothing, so it is left out. Only the fields the question contract fixes
+    are shown, so a corpus's private notes on its answers never reach the rewrite."""
+    blocks = []
+    for attempts in scoreboard.gather_trials(records).values():
+        if all(attempt["correct"] for attempt in attempts):
+            continue
+        question = attempts[0]["question"]
+        shown = ("trial", "correct", "abstained", "answer_ids", "answer")
+        miss = {"question": question["text"], "expected_ids": question["answer"],
+                "expected_names": question.get("answer_names", []),
+                "answerable": question["answerable"],
+                "trials": [{key: attempt[key] for key in shown} for attempt in attempts]}
+        blocks.append(f"--- {question['id']} ---\n{json.dumps(miss, indent=2, ensure_ascii=False)}")
+    return "\n".join(blocks)
 
 
 def _refuse_shared_ids(questions):

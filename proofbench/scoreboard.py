@@ -68,7 +68,7 @@ def _abstention_rates(answerable, unanswerable):
     }
 
 
-def _gather_trials(records):
+def gather_trials(records):
     """Every trial of one question under its id. Each question has to have been asked the same
     number of times, or a rate over them compares nothing, so an unequal count is a hard stop."""
     questions = {}
@@ -107,7 +107,7 @@ def metrics(records):
     beside them is an accuracy at all. They count questions, never trials."""
     answerable = [record for record in records if record["answerable"]]
     unanswerable = [record for record in records if not record["answerable"]]
-    questions = _gather_trials(records)
+    questions = gather_trials(records)
     trials = len(records) // len(questions)
     tokens = _tokens(records)
     score = _score_answers if answerable else _score_abstentions
