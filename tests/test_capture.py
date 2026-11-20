@@ -113,3 +113,90 @@ def test_ignored_paths_are_left_out_of_what_the_agent_changed(noisy, tmp_path):
 def test_ignoring_everything_the_answer_changes_is_a_hard_stop(noisy):
     with pytest.raises(HarnessError, match="no ground truth"):
         capture.ground_truth(noisy, "buggy", "fixed", ["**"])
+
+
+# ---- what is new is decided by the baseline's ignore rules, never by the agent's
+#
+# The capture registers new files with `git add`, which skips whatever git has been told to
+# ignore. One agent wrote a .gitignore for its own report files, and they left the diff: an
+# agent could keep any new file out of the grade by ignoring it.
+
+@pytest.fixture
+def work(repo, tmp_path):
+    """A workspace whose baseline already ignores build/, holding the agent's fix to a.py."""
+    (repo / ".gitignore").write_text("build/\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "ignore build output")
+    git(repo, "checkout", "-q", "fixed")
+    git(repo, "rebase", "-q", "buggy")
+    git(repo, "checkout", "-q", "buggy")
+    baseline, _ = capture.ground_truth(repo, "buggy", "fixed")
+    clone = capture.workspace(repo, "buggy", baseline, tmp_path / "work")
+    (clone / "a.py").write_text("x = 2\n")
+    (clone / "report.md").write_text("what I did\n")
+    (clone / "build").mkdir()
+    (clone / "build" / "out.txt").write_text("compiled\n")
+    return clone, baseline
+
+
+def assert_report_is_captured_and_build_output_is_not(clone, baseline):
+    diff = capture.capture(clone, baseline)
+    assert "+x = 2" in diff and "+what I did" in diff
+    assert "out.txt" not in diff
+    return diff
+
+
+def test_a_file_the_agent_adds_to_gitignore_is_still_captured(work):
+    clone, baseline = work
+    (clone / ".gitignore").write_text("build/\nreport.md\n")
+    diff = assert_report_is_captured_and_build_output_is_not(clone, baseline)
+    assert "+report.md" in diff, "the agent's edit to .gitignore is itself part of what it changed"
+    assert (clone / ".gitignore").read_text() == "build/\nreport.md\n"
+
+
+def test_a_gitignore_the_agent_commits_hides_nothing(work):
+    clone, baseline = work
+    (clone / ".gitignore").write_text("build/\nreport.md\n")
+    git(clone, "commit", "-qam", "agent work")
+    assert_report_is_captured_and_build_output_is_not(clone, baseline)
+
+
+def test_a_new_gitignore_in_a_folder_hides_nothing(work):
+    clone, baseline = work
+    (clone / "notes").mkdir()
+    (clone / "notes" / ".gitignore").write_text("*\n")
+    (clone / "notes" / "scratch.py").write_text("y = 3\n")
+    diff = assert_report_is_captured_and_build_output_is_not(clone, baseline)
+    assert "+y = 3" in diff and "notes/.gitignore" in diff
+
+
+def test_deleting_the_baseline_gitignore_does_not_unhide_build_output(work):
+    clone, baseline = work
+    (clone / ".gitignore").unlink()
+    diff = assert_report_is_captured_and_build_output_is_not(clone, baseline)
+    assert "deleted file" in diff
+    assert not (clone / ".gitignore").exists()
+
+
+def test_the_repo_s_private_exclude_file_hides_nothing(work):
+    clone, baseline = work
+    (clone / ".git" / "info").mkdir(exist_ok=True)
+    (clone / ".git" / "info" / "exclude").write_text("report.md\n")
+    assert_report_is_captured_and_build_output_is_not(clone, baseline)
+
+
+def test_an_excludes_file_set_in_git_config_hides_nothing(work, tmp_path):
+    clone, baseline = work
+    (tmp_path / "my-ignores").write_text("report.md\n")
+    git(clone, "config", "core.excludesFile", str(tmp_path / "my-ignores"))
+    assert_report_is_captured_and_build_output_is_not(clone, baseline)
+
+
+@pytest.mark.parametrize("flag", ["--assume-unchanged", "--skip-worktree"])
+def test_an_index_flag_cannot_hide_an_edit_to_a_tracked_file(work, flag):
+    """Both flags tell git to stop looking at a file. Set on a file the agent then edits, the
+    edit left the diff, so noise in a tracked file could be kept out of the grade."""
+    clone, baseline = work
+    git(clone, "update-index", flag, "README.md")
+    (clone / "README.md").write_text("Fix x.\nAn edit nobody asked for.\n")
+    assert "+An edit nobody asked for." in capture.capture(clone, baseline)

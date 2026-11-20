@@ -124,6 +124,8 @@ agent that listed its branches, would have been graded against a key it had been
   `holdout: true`.
 - The judge runs with no tools and none of your personal configuration, so a diff cannot
   instruct it and a grade does not depend on where you ran the command.
+- What the agent changed is read under the repo's own ignore rules, not the agent's. One agent
+  wrote a `.gitignore` for its scratch reports, and they silently left its diff.
 
 ## The arc in one line
 

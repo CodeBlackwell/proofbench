@@ -61,6 +61,14 @@ The runner does a repo task. It is started once per task per model.
     `.windsurfrules`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QODER.md`, and the folders
     `.claude`, `.cursor`, `.gemini`, `.kiro`, `.qoder`.
 - Also left out: any path the task lists under [`ignore`](configuration.md#a-repo-task).
+- New files are found under the ignore rules the repo had **before** the agent ran. A
+  `.gitignore` the agent writes, edits or deletes changes nothing about what is captured, and
+  its change to that file is itself in the diff.
+- Git's other ways of hiding work are switched off for the capture: the clone's private
+  exclude file, an excludes file named in git config, and the `assume-unchanged` and
+  `skip-worktree` index flags.
+- Your own global gitignore is not applied either, so the same agent output gives the same
+  diff on every machine.
 - With the `claude` runner, cost, turns and token counts are read from its output.
 
 An agent that changes nothing leaves an empty diff. That diff is still graded and counted.
