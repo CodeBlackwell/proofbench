@@ -14,16 +14,17 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from proofbench import config, judge, optimize
+from proofbench import config, engine, judge, optimize
 from proofbench.util import HarnessError
+
+from .stubs import read_question_from
 
 FIXTURE = Path(__file__).resolve().parent.parent / "examples" / "question-demo"
 ALL_THREE = "LQ-0001 LQ-0002 LQ-0003"
 
 # Right on a question exactly when the subject file names that question's id.
-ARM = ("import json\n"
+ARM = (read_question_from(FIXTURE / "questions" / "lineage.jsonl") +
        "subject = open(sys.argv[sys.argv.index('--subject') + 1]).read()\n"
-       "question = json.loads(sys.stdin.read())\n"
        "wrong = {'answer': 'someone else', 'answer_ids': ['diva:Nobody, At All'], 'abstained': False}\n"
        "right = {'answer': '', 'answer_ids': question['answer'], 'abstained': not question['answerable']}\n"
        "answer = right if question['id'] in subject else wrong\n"
@@ -91,6 +92,27 @@ class QuestionLoop(unittest.TestCase):
             self.run_loop(ALL_THREE, "anything")
         self.assertIn("no grades to learn from", str(raised.exception))
         self.assertEqual(self.subject.read_text(), ALL_THREE)
+
+    def test_a_crash_during_the_re_run_puts_the_original_subject_back(self):
+        real, calls = engine.bench, []
+
+        def bench_then_interrupt(*args):
+            calls.append(args)
+            if len(calls) == 2:
+                raise KeyboardInterrupt
+            return real(*args)
+        with patch.object(engine, "bench", bench_then_interrupt), self.assertRaises(KeyboardInterrupt):
+            self.run_loop("LQ-0001", ALL_THREE)
+        self.assertEqual(self.subject.read_text(), "LQ-0001")
+
+    def test_a_candidate_that_leaves_the_objective_undefined_is_reverted(self):
+        """Nothing right means no token price, which stops the run: the worst candidate of all
+        must not be the one left in the subject file."""
+        path = self.root / "config.yaml"
+        path.write_text(path.read_text().replace("objective: accuracy", "objective: tokens_per_correct"))
+        with self.assertRaises(HarnessError):
+            self.run_loop("LQ-0001", "names no question")
+        self.assertEqual(self.subject.read_text(), "LQ-0001")
 
 
 class RepoGrades(unittest.TestCase):

@@ -75,8 +75,9 @@ kind.
 - **`repo`** (the default, and everything above): the agent edits a repository, capture is a
   git diff against the broken branch, and the judge grades that diff against an answer branch.
 - **`question`**: the agent answers a question with a known answer. The corpus is a JSONL
-  file, one question per line; the runner is any executable that reads one question object on
-  stdin and prints one result object on stdout; nothing is reset and no diff is taken.
+  file, one question per line; the runner is any executable that is handed a question's `id`
+  and `text` on stdin, never its answer key, and prints one result object on stdout; nothing
+  is cloned and no diff is taken.
 
 ```yaml
 runner: arms/oracle-tier1.py          # any executable; no built-in runner drives a question
@@ -171,9 +172,15 @@ questions. Check a kept rewrite on a question file the loop never saw.
   `<runner> <invoke> <model>` for a repo task, or as `<runner> --model <model> <runner_args>`
   with the question on stdin for a question task, so you can drive aider, codex, or a custom
   agent.
-- **Capture**: the git-diff default resets a repo to its default branch and snapshots what the
-  agent changed, excluding dependency and cache trees so they never pollute or balloon the
-  judge prompt. A question task captures the arm's result object instead.
+- **Capture**: the git-diff default clones a repo's default branch into a throwaway directory,
+  runs the agent there, and snapshots what it changed against the baseline commit, excluding
+  dependency and cache trees so they never pollute or balloon the judge prompt. The corpus repo
+  is only read, and the clone holds neither the answer branch nor a remote to fetch it from. An
+  agent that changes nothing is graded on its empty diff and counted in the macro average. A
+  question task captures the arm's result object instead.
+- **Judge and synth**: both run `claude -p --tools "" --safe-mode`, so they have no tools and
+  none of your CLAUDE.md, hooks, plugins or MCP servers. That needs a Claude Code version with
+  both flags; an older one stops the run with the CLI's own error.
 
 ## Bring your own corpus
 

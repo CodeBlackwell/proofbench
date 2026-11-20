@@ -154,6 +154,15 @@ class FailLoud(unittest.TestCase):
             runner.ask(arm, "stub", ANSWERABLE, self.log)
         self.assertIn("tokens_in", str(raised.exception))
 
+    def test_an_arm_is_handed_the_question_and_never_its_answer_key(self):
+        """This arm answers with whatever it was handed, so the test reads the harness's stdin."""
+        arm = write_arm(self.tmp.name,
+                        'import json\nhanded = sys.stdin.read()\n'
+                        'print(json.dumps({"answer": handed, "answer_ids": [], "abstained": True,'
+                        ' "tokens_in": 1, "tokens_out": 1}))\n')
+        handed = json.loads(runner.ask(arm, "stub", ANSWERABLE, self.log)["answer"])
+        self.assertEqual(handed, {"id": ANSWERABLE["id"], "text": ANSWERABLE["text"]})
+
     def test_an_arm_that_prints_no_object_is_fatal(self):
         arm = write_arm(self.tmp.name, 'print("I could not answer that")\n')
         with self.assertRaises(HarnessError):

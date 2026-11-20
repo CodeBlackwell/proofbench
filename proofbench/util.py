@@ -40,10 +40,16 @@ def claude_json(prompt, model):
     """Call claude headless and return the parsed JSON object it produced.
 
     The prompt goes on STDIN, never argv: an embedded diff can exceed ARG_MAX and
-    silently abort exec, which once manufactured a confident wrong number."""
+    silently abort exec, which once manufactured a confident wrong number.
+
+    The judge and the synth read text an agent wrote and answer with one object, so they get no
+    tools (--tools "") and none of the launching user's CLAUDE.md, hooks, plugins or MCP servers
+    (--safe-mode). A grade must not depend on where proofbench was started, and a diff must not
+    be able to instruct a process that can act."""
     proc = subprocess.run(
-        ["claude", "-p", "--model", model,
-         "--dangerously-skip-permissions", "--output-format", "json"],
+        ["claude", "-p", "--model", model, "--tools", "", "--safe-mode", "--output-format", "json"],
         input=prompt, capture_output=True, text=True,
     )
+    if proc.returncode != 0:
+        die(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:300]}")
     return extract_json(proc.stdout)

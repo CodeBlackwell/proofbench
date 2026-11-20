@@ -47,6 +47,26 @@ def _synth(cfg, run_dir, model, leg):
     return candidate
 
 
+def _try_candidate(cfg, run_dir, model, candidate, base_score):
+    """Install the candidate, score it, and put the original back unless the gate kept it. The
+    restore sits in a finally because the re-run is where a run dies: a crash, a Ctrl-C or an
+    objective the candidate left undefined would otherwise leave an unvalidated rewrite in the
+    live subject file."""
+    backup = run_dir / "subject.bak"
+    shutil.copy(cfg.subject, backup)
+    kept = False
+    try:
+        cfg.subject.write_text(candidate)
+        log("re-running with the candidate subject")
+        improved = engine.bench(cfg, run_dir / "improved", [model])[model]
+        imp_score = engine.objective_of(improved, cfg.objective)
+        kept = _did_not_regress(cfg.objective, base_score, imp_score)
+    finally:
+        if not kept:
+            shutil.copy(backup, cfg.subject)
+    return imp_score, kept
+
+
 def optimize(cfg, run_dir):
     if not cfg.can_optimize:
         die("optimize needs both `subject` and `synth` in config")
@@ -57,17 +77,7 @@ def optimize(cfg, run_dir):
 
     log("synthesizing an improved subject from the misses")
     candidate = _synth(cfg, run_dir, model, baseline)
-    backup = run_dir / "subject.bak"
-    shutil.copy(cfg.subject, backup)
-    cfg.subject.write_text(candidate)
-
-    log("re-running with the candidate subject")
-    improved = engine.bench(cfg, run_dir / "improved", [model])[model]
-    imp_score = engine.objective_of(improved, cfg.objective)
-
-    kept = _did_not_regress(cfg.objective, base_score, imp_score)
-    if not kept:
-        shutil.copy(backup, cfg.subject)
+    imp_score, kept = _try_candidate(cfg, run_dir, model, candidate, base_score)
     verdict = "KEPT" if kept else "REVERTED"
     log(f"{cfg.objective}: baseline={base_score:.3f} improved={imp_score:.3f} -> {verdict}")
     (run_dir / "result.json").write_text(json.dumps(

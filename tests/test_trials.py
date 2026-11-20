@@ -15,6 +15,8 @@ from pathlib import Path
 from proofbench import config, engine, question, scoreboard
 from proofbench.util import HarnessError
 
+from .stubs import read_question_from
+
 FIXTURE = Path(__file__).resolve().parent.parent / "examples" / "question-demo"
 
 
@@ -127,8 +129,7 @@ class TrialsConfig(unittest.TestCase):
 class TrialsBench(unittest.TestCase):
     """The demo corpus asked three times by an arm that is right on its first call only."""
 
-    ARM = ("import json, pathlib\n"
-           "question = json.loads(sys.stdin.read())\n"
+    ARM = (read_question_from(FIXTURE / "questions" / "lineage.jsonl") + "import pathlib\n"
            "seen = pathlib.Path(__file__).with_name('seen-' + question['id'])\n"
            "first = not seen.exists()\n"
            "seen.touch()\n"

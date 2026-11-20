@@ -1,9 +1,10 @@
 # The question task kind. Nothing here reaches the network:
 #   proofbench run --config examples/question-demo/proofbench.question.yaml
 #
-# The runner is any executable that reads one question JSON object on stdin and prints one
-# result object on stdout. This one is a stub that answers from the answer key, so the demo
-# grades to fixed numbers; a real arm answers from a corpus and never sees the key.
+# The runner is any executable that is handed a question's id and text as JSON on stdin and
+# prints one result object on stdout. The harness never hands an arm the answer key. This one
+# is a stub that opens the key file itself, so the demo grades to fixed numbers; a real arm
+# answers from a corpus.
 runner: arms/oracle-tier1.py
 models: [stub]
 judge_model: opus          # held constant, and only reached when an id match cannot settle it

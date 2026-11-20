@@ -22,14 +22,15 @@ flowchart LR
   A -- "reference solution<br/>git diff default_branch..answer_branch" --> B
 ```
 
-The agent never sees `answer_branch`. It is checked out on `default_branch`, asked to fix the
-repo, and graded on how close its patch comes to the reference solution.
+The agent never sees `answer_branch`. It works in a throwaway clone that holds `default_branch`
+alone, with no remote to fetch the answer from, is asked to fix the repo, and is graded on how
+close its patch comes to the reference solution. Your corpus repo is only read.
 
 ## How a task is scored
 
 ```mermaid
 flowchart TD
-  reset["reset working tree → default_branch"] --> run["runner invokes the agent"]
+  reset["fresh clone of default_branch"] --> run["runner invokes the agent"]
   run --> cap["capture: git diff of the working tree<br/>= agent patch"]
   gt["ground truth:<br/>default_branch..answer_branch"] --> judge
   cap --> judge{{"LLM judge"}}

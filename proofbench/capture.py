@@ -1,9 +1,14 @@
-"""git-diff capture: reset a repo to its broken state, then snapshot what the agent changed.
+"""git-diff capture: clone a repo at its broken state, then snapshot what the agent changed.
 
 The dominant agent-eval case is "agent edits a repo, grade the diff against an answer
-branch." Dependency and cache trees are excluded: they are never the agent's fix and can
-balloon the judge prompt past ARG_MAX."""
+branch." The corpus repo is only ever read. The agent works in a throwaway clone that holds
+the broken branch alone, so the answer is not in it and nothing the agent does outlives the
+attempt. Dependency and cache trees are excluded from the diff: they are never the agent's fix
+and can balloon the judge prompt past ARG_MAX."""
 import subprocess
+from pathlib import Path
+
+from .util import die
 
 _EXCLUDES = [":(exclude,glob)**/node_modules/**", ":(exclude,glob)**/.venv/**",
              ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/.code-review-graph/**"]
@@ -18,25 +23,44 @@ _EXCLUDES += [f":(exclude,glob){p}" for p in (
 
 
 def _git(repo, *args):
-    return subprocess.run(["git", "-C", str(repo), *args],
-                          capture_output=True, text=True)
+    """Every call here decides what gets graded, so a git failure is fatal. Read as empty
+    output it would become an empty answer key or an agent that seemed to change nothing."""
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    if proc.returncode != 0:
+        die(f"git {' '.join(args)} failed in {repo}: {proc.stderr.strip()}")
+    return proc.stdout
 
 
-def reset(repo, default_branch):
-    """Restore the repo to a pristine broken state. --detach tolerates the branch being
-    checked out in another worktree."""
-    _git(repo, "checkout", "-q", "--detach", default_branch)
-    _git(repo, "reset", "-q", "--hard")
-    _git(repo, "clean", "-qfdx")
+def _pin(repo, ref):
+    return _git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
 
 
 def ground_truth(repo, default_branch, answer_branch):
-    return _git(repo, "diff", f"{default_branch}..{answer_branch}").stdout
+    """The baseline commit and the answer diff, both read once before any agent runs. The
+    baseline travels as a commit and never as a branch name, because an agent can move a
+    branch. A path inside some other repo is refused: git would answer for that outer repo."""
+    if not Path(_git(repo, "rev-parse", "--show-toplevel").strip()).samefile(repo):
+        die(f"{repo} is not the root of a git repository")
+    baseline = _pin(repo, default_branch)
+    answer = _git(repo, "diff", baseline, _pin(repo, answer_branch))
+    return baseline, answer or die(
+        f"{answer_branch} changes nothing against {default_branch} in {repo}: no ground truth")
+
+
+def workspace(repo, default_branch, baseline, dest):
+    """A fresh clone of the default branch alone, detached at the baseline. --no-local copies
+    only the objects that branch reaches, and the remote is dropped, so the clone holds neither
+    the answer nor a way to fetch it."""
+    _git(repo, "clone", "-q", "--no-local", "--single-branch", "--branch", default_branch,
+         ".", str(dest))
+    _git(dest, "checkout", "-q", "--detach", baseline)
+    _git(dest, "remote", "remove", "origin")
+    return dest
 
 
 def capture(repo, baseline):
-    """Diff against the buggy baseline ref, not the working tree: agents may commit their
-    fixes. reset() detaches HEAD, so the baseline ref stays pinned while agent commits move
-    HEAD, and this diff captures the fix whether it was committed or left uncommitted."""
+    """Diff against the baseline commit, not the working tree: agents may commit their fixes,
+    on a detached HEAD or on the branch itself, and the commit id is the one ref they cannot
+    move. add -N puts new files in the diff."""
     _git(repo, "add", "-N", ".")
-    return _git(repo, "diff", baseline, "--", ".", *_EXCLUDES).stdout
+    return _git(repo, "diff", baseline, "--", ".", *_EXCLUDES)

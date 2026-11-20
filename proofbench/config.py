@@ -54,6 +54,16 @@ def _question_file(path):
     return path if path.is_file() else die(f"question file not found: {path}")
 
 
+def _refuse_shared_names(tasks):
+    """The answer key and the output directory are both keyed by task name, so two tasks sharing
+    one would be graded against a single answer and written over each other."""
+    names = [task.name for task in tasks]
+    shared = sorted({name for name in names if names.count(name) > 1})
+    if shared:
+        die(f"task names are not unique: {shared}")
+    return tasks
+
+
 def _corpus(entries, resolve):
     """One corpus, one kind: a mixed corpus would need two capture paths inside one leg."""
     kinds = {entry.get("kind", "repo") for entry in entries}
@@ -65,9 +75,10 @@ def _corpus(entries, resolve):
                                   path=_question_file(resolve(entry["file"]))) for entry in entries]
     if kind != "repo":
         die(f"unknown corpus kind: {kind}")
-    return kind, [Task(name=entry["name"], path=resolve(entry["path"]), invoke=entry["invoke"],
-                       default_branch=entry["default_branch"], answer_branch=entry["answer_branch"])
-                  for entry in entries]
+    return kind, _refuse_shared_names([
+        Task(name=entry["name"], path=resolve(entry["path"]), invoke=entry["invoke"],
+             default_branch=entry["default_branch"], answer_branch=entry["answer_branch"])
+        for entry in entries])
 
 
 def _arm(runner_name, resolve):

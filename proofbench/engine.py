@@ -1,43 +1,51 @@
-"""The bench: corpus -> reset -> run -> capture -> judge -> scoreboard.
+"""The bench: corpus -> clone -> run -> capture -> judge -> scoreboard.
 
-Models run sequentially (each reuses the same repos); tasks within a model run in
-parallel (each task is a distinct repo, so no working-tree contention)."""
+Models run sequentially; tasks within a model run in parallel. Every attempt gets its own
+throwaway clone, so no two attempts share a working tree and the corpus repos are only read."""
 import json
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from . import capture, judge, question, runner
 from .util import die, log
 
 
 def _ground_truth(cfg, run_dir):
+    """Each task's baseline commit and answer diff, pinned before any agent runs."""
     gt = {}
     for task in cfg.corpus:
         d = run_dir / "_ground-truth" / task.name
         d.mkdir(parents=True, exist_ok=True)
-        answer = capture.ground_truth(task.path, task.default_branch, task.answer_branch)
-        readme = next((p for p in task.path.glob("README*")), None)
-        (d / "answer.diff").write_text(answer)
-        gt[task.name] = (readme.read_text() if readme else "", answer)
+        gt[task.name] = capture.ground_truth(task.path, task.default_branch, task.answer_branch)
+        (d / "answer.diff").write_text(gt[task.name][1])
     return gt
 
 
+def _attempt(cfg, task, model, baseline, out_dir):
+    """One agent run in a clone under the system temp directory: outside the corpus repo, which
+    holds the answer branch, and outside the run directory, which holds the answer diff. The
+    README is the one the baseline commit holds, read before the agent can touch it."""
+    with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
+        work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
+        readme = next((p.read_text() for p in sorted(work.glob("README*")) if p.is_file()), "")
+        meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work, out_dir / "run.log")
+        return readme, meta, capture.capture(work, baseline)
+
+
 def _run_and_grade(cfg, task, model, gt, out_dir):
-    readme, answer = gt[task.name]
-    capture.reset(task.path, task.default_branch)
-    meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, task.path, out_dir / "run.log")
+    baseline, answer = gt[task.name]
+    readme, meta, agent_diff = _attempt(cfg, task, model, baseline, out_dir)
     cost = f", ${meta['cost_usd']:.3f}" if meta["cost_usd"] is not None else ""
     log(f"[{model}] {task.name}: {meta['seconds']}s{cost}"
         + (f", {meta['turns']} turns" if meta["turns"] else ""))
-    agent_diff = capture.capture(task.path, task.default_branch)
     (out_dir / "agent.diff").write_text(agent_diff)
+    grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
+    grade.update(task=task.name, _meta=meta)
     if not agent_diff.strip():
-        log(f"\033[33m[{model}] {task.name}: EMPTY diff — agent changed nothing; "
-            f"excluded from macro (check the invoke if this is unexpected)\033[0m")
-        grade = {"task": task.name, "empty_capture": True}
-    else:
-        grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
-        grade["task"] = task.name
-    grade["_meta"] = meta
+        grade["empty_capture"] = True
+        log(f"\033[33m[{model}] {task.name}: EMPTY diff: the agent changed nothing, and the "
+            f"judge graded that as it stands (check the invoke if this is unexpected)\033[0m")
     (out_dir / "grade.json").write_text(json.dumps(grade, indent=2))
     return grade
 
@@ -54,16 +62,15 @@ def _resources(grades):
 
 
 def aggregate(grades):
-    """Macro-average the shared numeric fields. Empty-capture tasks carry no metrics: they
-    are excluded from the average and listed separately so they never become a silent zero."""
-    graded = [g for g in grades if not g.get("empty_capture")]
+    """Macro-average the shared numeric fields over every task. A task the agent left untouched
+    is graded like any other and named under empty_captures: leaving it out of the average would
+    let an agent raise its score by giving up on the tasks it cannot do."""
     out = {"tasks": {g["task"]: judge.numeric_fields(g) for g in grades}}
     empty = [g["task"] for g in grades if g.get("empty_capture")]
     if empty:
         out["empty_captures"] = empty
-    if graded:
-        shared = set.intersection(*(set(judge.numeric_fields(g)) for g in graded))
-        out.update({f"macro_{f}": sum(g[f] for g in graded) / len(graded) for f in shared})
+    shared = set.intersection(*(set(judge.numeric_fields(g)) for g in grades))
+    out.update({f"macro_{f}": sum(g[f] for g in grades) / len(grades) for f in shared})
     out["resources"] = _resources(grades)
     return out
 

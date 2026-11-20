@@ -16,6 +16,8 @@ from pathlib import Path
 from proofbench import config, question, scoreboard
 from proofbench.util import HarnessError
 
+from .stubs import read_question_from
+
 QUESTIONS = [
     {"id": "LQ-0001", "text": "Who advised Carl Friedrich Gauss?", "answer": ["Q77361"],
      "answer_names": ["Johann Friedrich Pfaff"], "answerable": True, "tier": 1, "hops": 1,
@@ -25,8 +27,7 @@ QUESTIONS = [
      "type": "lookup"},
 ]
 
-ARM_BODY = """question = json.loads(sys.stdin.read())
-print(json.dumps({"answer": ", ".join(question["answer_names"]),
+ARM_BODY = """print(json.dumps({"answer": ", ".join(question["answer_names"]),
                   "answer_ids": question["answer"], "abstained": False,
                   "tokens_in": 100, "tokens_out": 10, "seconds": 0.0,
                   **REPORT}))
@@ -99,7 +100,7 @@ class CannedLegScoreboard(unittest.TestCase):
         (directory / "questions.jsonl").write_text(
             "".join(json.dumps(one) + "\n" for one in QUESTIONS))
         arm = directory / "arm.py"
-        arm.write_text("#!/usr/bin/env python3\nimport json\nimport sys\n"
+        arm.write_text("#!/usr/bin/env python3\n" + read_question_from(directory / "questions.jsonl")
                        + ARM_BODY.replace("REPORT", report))
         arm.chmod(arm.stat().st_mode | stat.S_IEXEC)
         (directory / "config.yaml").write_text(CONFIG)

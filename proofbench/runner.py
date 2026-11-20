@@ -16,6 +16,11 @@ _NO_META = {"cost_usd": None, "turns": None, "tokens_in": None, "tokens_out": No
 # the arm contract (answer, cost_usd, seconds, chunks, path) is logged, never required here.
 _NEEDED = ("answer_ids", "abstained", "tokens_in", "tokens_out")
 
+# All an arm is handed. The rest of a question record is the answer key, or a note the corpus
+# keeps on it (answerable, type, evidence), and an arm that passed any of that on to a model
+# would be graded against a key it had been shown.
+_ASKED = ("id", "text")
+
 
 def _claude(invoke, model, max_turns):
     return ["claude", "-p", invoke, "--model", model,
@@ -56,14 +61,15 @@ def run(runner, invoke, model, max_turns, cwd, log_path):
 
 
 def ask(arm, model, question, log_path, runner_args=()):
-    """Drive one question through an arm executable: the question object goes in on stdin,
+    """Drive one question through an arm executable: the question's id and text go in on stdin,
     one result object comes back on stdout. Unlike a repo task, the arm's exit status is not
     advisory: there is no artifact left behind to grade, so a failed arm has to be fatal.
 
     ``runner_args`` is the config's own argv for this arm, appended after --model MODEL. An arm
     that needs to be told which frozen corpus to read cannot start without it, and reading it
     off the config is what makes the run reproducible from the config alone."""
-    proc = subprocess.run([str(arm), "--model", model, *runner_args], input=json.dumps(question),
+    asked = {field: question[field] for field in _ASKED}
+    proc = subprocess.run([str(arm), "--model", model, *runner_args], input=json.dumps(asked),
                           capture_output=True, text=True)
     Path(log_path).write_text(proc.stdout + proc.stderr)
     if proc.returncode != 0:
