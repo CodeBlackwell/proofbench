@@ -49,7 +49,7 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
     log(f"[{model}] {task.name}: {meta['seconds']}s{cost}"
         + (f", {meta['turns']} turns" if meta["turns"] else ""))
     (out_dir / "agent.diff").write_text(agent_diff)
-    grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model)
+    grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model, task.items)
     grade.update(task=task.name, _meta=meta)
     if not agent_diff.strip():
         grade["empty_capture"] = True

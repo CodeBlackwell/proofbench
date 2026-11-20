@@ -65,6 +65,8 @@ corpus:
     answer_branch: fixed              # a branch, tag or commit: the known answer
     holdout: true                     # optional; see docs/optimize.md
     ignore: ["dist/**", notes.md]     # optional; paths that are not part of the fix
+    items:                            # optional; what the fix does, when you want to say so
+      - "is_prime returns False for a composite number"
 ```
 
 - `path` must be the root of its own repository, not a folder inside another one.
@@ -81,6 +83,20 @@ corpus:
   graded on them.
 - Patterns are relative to the repo root. `*` stays inside one folder; `**` crosses folders,
   so `dist/**` means everything under `dist`.
+
+**`items`** lists what the fix does, one line each.
+
+- Without it, the judge decides what the items are: it reads every distinct change in the
+  answer as one. That is fine when the answer is nothing but the fix.
+- Use it when the answer changes more than the fix **inside the file it fixes**: reworded
+  docstrings, cosmetic rewrites. `ignore` cannot leave those out, because it works on whole
+  files.
+- With it, the judge only rules true or false on each line you wrote. It cannot add, split or
+  drop items.
+- Recall is then counted by proofbench: items ruled fixed, divided by items listed.
+- Write each item as an outcome ("a trailing backslash is not treated as an escape"), not as
+  an edit ("add `from[1] != 0`"). A different change that reaches the same outcome should count.
+- A judge reply that does not rule on exactly your items stops the run.
 - If the patterns leave nothing of the answer, the run stops.
 - How to build good tasks: [CORPUS.md](../CORPUS.md).
 

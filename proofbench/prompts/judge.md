@@ -9,11 +9,13 @@ change. Grade by comparing the agent's diff to the ground-truth diff.
 
 You are given three inputs below:
 - README: the task description for the repo.
-- ANSWER_DIFF: the ground-truth diff. Every distinct change in here is one ground-truth item.
+- ANSWER_DIFF: the ground-truth diff. Every distinct change in here is one ground-truth item,
+  unless a GROUND_TRUTH_ITEMS section is given: then those are the items, and the only ones.
 - AGENT_DIFF: the diff the agent actually produced.
 
 Grade by comparing AGENT_DIFF against ANSWER_DIFF:
-- Enumerate each distinct ground-truth item from ANSWER_DIFF. For each, decide whether
+- Enumerate each distinct ground-truth item from ANSWER_DIFF, or take the items exactly as
+  GROUND_TRUTH_ITEMS lists them, keeping each id. For each, decide whether
   AGENT_DIFF achieves the same outcome (semantically equivalent, not textually identical).
   Set fixed_by_agent accordingly with one line of evidence.
 - recall = (ground-truth items the agent achieved) / (total ground-truth items).

@@ -11,12 +11,40 @@ def numeric_fields(grade):
     return {k: v for k, v in grade.items() if isinstance(v, (int, float)) and not isinstance(v, bool)}
 
 
-def grade(judge_prompt, readme, answer_diff, agent_diff, model):
-    prompt = (f"{judge_prompt}\n\n"
+ITEMS_RULE = """===== GROUND_TRUTH_ITEMS =====
+This task fixes its own ground-truth items. They are listed below, one id each, and they are the
+only items: do not add, split, merge or drop any, whatever else ANSWER_DIFF changes. A change in
+ANSWER_DIFF that belongs to no listed item is not an item and never counts against the agent.
+Return exactly one entry per id in "items", each with "fixed_by_agent" set to true or false."""
+
+
+def _list_items(items):
+    listed = "\n".join(f"i{number}: {item}" for number, item in enumerate(items, 1))
+    return f"{ITEMS_RULE}\n{listed}\n\n" if items else ""
+
+
+def _recall_over(items, result):
+    """Recall over the items the task listed, counted here. The judge rules on each item and
+    nothing more: it does not choose how many items there are, and it does not do the division.
+    A reply that does not rule on exactly the listed ids is a hard stop."""
+    ruled = result.get("items")
+    entries = ruled if isinstance(ruled, list) else []
+    verdicts = {entry.get("id"): entry.get("fixed_by_agent") for entry in entries if isinstance(entry, dict)}
+    expected = {f"i{number}" for number in range(1, len(items) + 1)}
+    is_exact = len(entries) == len(items) and set(verdicts) == expected
+    if not is_exact or any(not isinstance(fixed, bool) for fixed in verdicts.values()):
+        die(f"judge did not rule true or false on exactly the items {sorted(expected)}: {ruled}")
+    return sum(verdicts.values()) / len(items)
+
+
+def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=()):
+    prompt = (f"{judge_prompt}\n\n{_list_items(items)}"
               f"===== README =====\n{readme}\n\n"
               f"===== ANSWER_DIFF =====\n{answer_diff}\n\n"
               f"===== AGENT_DIFF =====\n{agent_diff}\n")
     result = claude_json(prompt, model)
+    if items:
+        result["recall"] = _recall_over(items, result)
     if not numeric_fields(result):
         die("judge returned no numeric metric")
     return result

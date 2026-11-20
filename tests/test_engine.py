@@ -29,7 +29,7 @@ def test_bench_wires_end_to_end(tmp_path, monkeypatch):
     monkeypatch.setattr(runner, "run", fake_run)
 
     # stub judge: credit recall when the agent actually changed something
-    def fake_grade(prompt, readme, answer, agent_diff, model):
+    def fake_grade(prompt, readme, answer, agent_diff, model, items=()):
         return {"recall": 1.0 if agent_diff.strip() else 0.0, "precision": 1.0}
     monkeypatch.setattr(judge, "grade", fake_grade)
 
@@ -62,7 +62,7 @@ def bench_two_tasks(repo, tmp_path, monkeypatch):
             (Path(cwd) / "a.py").write_text("x = 2\n")
         return {"seconds": 1.0, "cost_usd": None, "turns": None}
 
-    def fake_grade(prompt, readme, answer, agent_diff, model):
+    def fake_grade(prompt, readme, answer, agent_diff, model, items=()):
         seen["readmes"].append(readme)
         return {"recall": 1.0 if "+x = 2" in agent_diff else 0.0}
     monkeypatch.setattr(runner, "run", fake_run)
@@ -123,7 +123,7 @@ def test_a_task_s_ignored_paths_reach_neither_side_of_the_grade(repo, tmp_path, 
         (Path(cwd) / "a.py").write_text("x = 2\n")
         return {"seconds": 0, "cost_usd": None, "turns": None}
     monkeypatch.setattr(runner, "run", fake_run)
-    monkeypatch.setattr(judge, "grade", lambda prompt, readme, answer, agent_diff, model:
+    monkeypatch.setattr(judge, "grade", lambda prompt, readme, answer, agent_diff, model, items=():
                         graded.update(answer=answer, agent=agent_diff) or {"recall": 1.0})
     cfg = _repo_config(repo, {"only": "fix it"})
     cfg.corpus[0].ignore = ["notes.md"]
@@ -141,3 +141,13 @@ def test_a_readme_named_in_lower_case_still_reaches_the_judge(repo, tmp_path, mo
     cfg = _repo_config(repo, {"only": "do nothing"})
     engine.bench(cfg, tmp_path / "run", cfg.models)
     assert readmes == ["Fix x.\n"]
+
+
+def test_a_task_s_items_reach_the_judge(repo, tmp_path, monkeypatch):
+    handed = []
+    monkeypatch.setattr(runner, "run", lambda *args: {"seconds": 0, "cost_usd": None, "turns": None})
+    monkeypatch.setattr(judge, "grade", lambda *args: handed.append(args[5]) or {"recall": 0})
+    cfg = _repo_config(repo, {"only": "do nothing"})
+    cfg.corpus[0].items = ["x is 2"]
+    engine.bench(cfg, tmp_path / "run", cfg.models)
+    assert handed == [["x is 2"]]

@@ -46,11 +46,36 @@ judge: default
 # synchronously, so capture sees a real git diff to grade. The background Workflow returns a
 # detection report and lands no diff headless, and runs its own internal models.
 corpus:
-  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working, ignore: [README.md, 'assets/**'] }
+  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: &invoke "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working, ignore: [README.md, 'assets/**'] }
   - { name: ph2-raccoon-saloon-debugging-challenge, path: repos/ph2-raccoon-saloon-debugging-challenge, invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: main,   answer_branch: solution }
   - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution, ignore: ['dist/**', readme.md, src/components/key.md] }
   - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
   - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
-  - { name: cpython-timsort,                        path: repos/cpython-timsort,                        invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
-  - { name: cpython-asyncio-cond,                   path: repos/cpython-asyncio-cond,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
-  - { name: sudo-baron-samedit,                     path: repos/sudo-baron-samedit,                     invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  # The three upstream answers change more than the fix inside the one file they touch
+  # (reworded docstrings, cosmetic rewrites), which `ignore` cannot leave out. Each task lists
+  # its `items`, so recall is counted over what the fix does and nothing else.
+  - name: cpython-timsort
+    path: repos/cpython-timsort
+    invoke: *invoke
+    default_branch: buggy
+    answer_branch: fixed
+    items:
+      - "merge_collapse also merges when the invariant fails one run deeper in the stack (p[n-2].len <= p[n-1].len + p[n].len), so the invariant holds over the top four runs and not only the top three"
+  - name: cpython-asyncio-cond
+    path: repos/cpython-asyncio-cond
+    invoke: *invoke
+    default_branch: buggy
+    answer_branch: fixed
+    items:
+      - "Condition.wait: a waiter that was already notified and is then cancelled before it resumes passes the wakeup on to another waiter"
+      - "Condition.wait: the wakeup is also passed on when the cancellation, or any other exception, arrives while the waiter is re-acquiring the lock after a successful notify"
+  - name: sudo-baron-samedit
+    path: repos/sudo-baron-samedit
+    invoke: *invoke
+    default_branch: buggy
+    answer_branch: fixed
+    items:
+      - "set_cmnd: a backslash that is the last character of an argument is not treated as an escape, so the copy never steps past the string's terminator"
+      - "set_cmnd: backslashes are unescaped only when a command is really being run through a shell (MODE_SHELL or MODE_LOGIN_SHELL together with MODE_RUN), so arguments the front end never escaped are left alone"
+      - "set_cmnd: the command lookup branch is taken whenever MODE_EDIT is not set, where it used to be taken whenever MODE_RUN or MODE_CHECK was set"
+      - "set_cmnd: every write into user_args is checked against the size of the buffer, and an overflow is reported as an error and never written"

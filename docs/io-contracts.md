@@ -122,6 +122,10 @@ The whole prompt goes in on stdin. The reply must hold one JSON object.
 | Synth | Your synth prompt, the grades, the current subject | `{"subject": "...", "changelog": "..."}` |
 
 - A reply with no usable object is asked for once more. A second failure stops the run.
+- When a repo task lists [`items`](configuration.md#a-repo-task), the prompt also carries a
+  `GROUND_TRUTH_ITEMS` section naming them `i1`, `i2` and so on. The reply must then hold
+  `"items": [{"id": "i1", "fixed_by_agent": true}, ...]`, one entry per id. proofbench counts
+  `recall` from those verdicts and overwrites whatever recall the judge wrote.
 - A call that runs past 15 minutes stops the run.
 - `NaN` is refused as a grade.
 - On a question, the judge is only called when an exact id match and the abstention rule
@@ -176,7 +180,8 @@ runs/<run-id>/
 }
 ```
 
-- `tasks`: the numbers the judge returned for each task.
+- `tasks`: the numbers the judge returned for each task. For a task that lists `items`,
+  `recall` is counted by proofbench from the judge's verdict on each one.
 - `macro_<field>`: the plain average of that field over every task. A field is averaged only
   if every task has it.
 - `empty_captures`: tasks where the agent changed nothing. They are graded and averaged like

@@ -96,6 +96,7 @@ design" and quietly corrupted the grades.
 - [ ] The default branch is a branch or tag, and it holds the broken state.
 - [ ] The answer branch differs from the default branch.
 - [ ] Every file the answer branch changes is part of the fix, or is listed under `ignore`.
+- [ ] If the answer changes more than the fix inside a file, the task lists its `items`.
 - [ ] The README states the contract and does not mention the bug.
 - [ ] No comment points at the defect.
 - [ ] The defect is not famous.
@@ -130,6 +131,23 @@ each task. Answer branches often carry more than the fix:
 The judge counts every change in the answer as something the agent should have done. On one
 real task this scored an agent that fixed both bugs at 0.40 recall, because three of the five
 "items" were files like these. List them under `ignore` and they are left out of both sides.
+
+**Then check what it changes inside the files it fixes.** A real fix commit often rewords
+docstrings or tidies nearby code in the same file, and `ignore` cannot leave that out. On one
+real task, five of the judge's seven items were reworded docstrings, and an agent that fixed
+one of the two real problems scored 0.14 where 0.50 was the honest number.
+
+List the task's `items` and that stops:
+
+```yaml
+    items:
+      - "a waiter that was notified and then cancelled passes the wakeup on to another waiter"
+      - "the wakeup is also passed on when the cancel arrives while re-acquiring the lock"
+```
+
+- The judge rules on each item you wrote and cannot add its own.
+- proofbench counts recall over your list.
+- Write outcomes, not edits, so a different fix that works still counts.
 
 ## Tasks from other people's repositories
 

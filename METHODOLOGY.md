@@ -89,6 +89,9 @@ around.
 
 - The keep or revert decision in `optimize` is the harness comparing two numbers.
 - "The score held" is not something the model can say. Only the comparison can return it.
+- A task can list its own ground-truth items. The judge then rules on each one, and the
+  harness counts recall. The judge prompt already said what an item was; the judge still
+  counted a rewritten README as an item on one task and set one aside on another.
 
 ## 4. The corpus is part of the method
 

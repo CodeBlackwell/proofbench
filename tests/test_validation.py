@@ -59,6 +59,9 @@ def load(directory, questions=(QUESTION,), **keys):
     ({"corpus": "\n  - {kind: question}"}, "file"),
     ({"corpus": "\n  - {name: primes, path: .}"}, "invoke"),
     ({"corpus": REPO_ENTRY + ", ignore: dist}"}, "ignore"),
+    ({"corpus": REPO_ENTRY + ", items: the bug is fixed}"}, "items"),
+    ({"corpus": REPO_ENTRY + ", items: ['']}"}, "items"),
+    ({"corpus": "\n  - {kind: question, file: questions.jsonl, items: [one]}"}, "items"),
     ({"corpus": REPO_ENTRY + ", hold_out: true}"}, "hold_out"),
     ({"corpus": "\n  - {kind: question, file: questions.jsonl, holdout: yes please}"}, "holdout"),
 ])
@@ -235,6 +238,13 @@ def test_a_repo_task_carries_the_paths_it_ignores(tmp_path):
     (tmp_path / "config.yaml").write_text(
         f"models: [weak]\njudge: default\ncorpus:{REPO_ENTRY}, ignore: ['dist/**', notes.md]}}\n")
     assert config.load(tmp_path / "config.yaml").corpus[0].ignore == ["dist/**", "notes.md"]
+
+
+def test_a_repo_task_carries_the_items_it_lists(tmp_path):
+    (tmp_path / "config.yaml").write_text(
+        f"models: [weak]\njudge: default\ncorpus:{REPO_ENTRY}, items: [the loop stops at the end, writes are bounded]}}\n")
+    assert config.load(tmp_path / "config.yaml").corpus[0].items == [
+        "the loop stops at the end", "writes are bounded"]
 
 
 def test_a_question_corpus_is_shipped_no_prompt_and_has_to_bring_its_own(tmp_path):

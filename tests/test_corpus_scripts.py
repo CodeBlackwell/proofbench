@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from proofbench import config
+
 from .conftest import git
 
 CORPORA = Path(__file__).resolve().parent.parent / "corpora"
@@ -61,3 +63,12 @@ def test_every_task_in_the_corpus_config_can_be_built(build_hard):
     buildable = ({entry["name"] for entry in MANIFEST["ready"]} | set(build_hard.BENCHMARKS)
                  | {case["name"] for case in MANIFEST["upstream"]})
     assert {task["name"] for task in config["corpus"]} <= buildable
+
+
+def test_the_corpus_config_loads_and_the_upstream_cases_fix_their_items():
+    """Each upstream answer changes more than the fix in the one file it touches, which `ignore`
+    cannot leave out, so those three tasks say what counts."""
+    tasks = {task.name: task for task in config.load(CORPORA / "proofbench.yaml").corpus}
+    assert len(tasks) == 8
+    for case in MANIFEST["upstream"]:
+        assert tasks[case["name"]].items, f"{case['name']} lists no items"
