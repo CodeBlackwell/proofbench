@@ -167,3 +167,14 @@ the default branch and an `answer_pin` for the answer branch.
 
 `corpora/build_hard.py` builds three tasks this way, from the `upstream` entries in the
 manifest. Each names a project, one file, the fix commit and its parent.
+
+**An existing benchmark makes a good check.** `corpora/build_swebench.py` builds SWE-bench
+Verified instances from the `swebench` entries in the manifest:
+
+- One repo per upstream project, with two branches per instance. `<name>` is the base
+  commit and `<name>-fixed` adds the gold patch.
+- The issue text is committed as `README`, so it is the task description the judge is shown.
+- Each entry pins the base commit and the hash of the gold patch. Run the script with
+  `--pin NAME` to print an entry to paste.
+- These instances are not in `corpora/proofbench.yaml`. They exist to compare proofbench's
+  grades with patches that each project's own tests have already passed or failed.

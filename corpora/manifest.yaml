@@ -100,6 +100,16 @@ upstream:
       loop can read and write past the end of the destination buffer (a heap overflow). Find
       and fix the bug so the argument copy stays within bounds.
 
+# SWE-bench Verified instances, built by build_swebench.py. Not in proofbench.yaml: they exist
+# to check proofbench's grades against patches the projects' own tests have already judged.
+# `base` is the commit the instance starts from and `patch_sha256` is the hash of its gold
+# patch, so neither side can move. Add an entry with: build_swebench.py --pin NAME
+swebench:
+  - {name: astropy__astropy-12907, repo: astropy/astropy, base: d16bfe05a744909de4b27f5875fe0d4ed41ce607, patch_sha256: 0f3e44432ed8540e9526edff4f83793948a2f139fc3971b67c30043c1eb7964a}
+  - {name: django__django-11099, repo: django/django, base: d26b2424437dabeeca94d7900b37d2df4410da0c, patch_sha256: cf203df5a90df3747f2d9a59cb0d02620d70228c29cb0c3477e5509056c19c09}
+  - {name: django__django-16082, repo: django/django, base: bf47c719719d0e190a99fa2e7f959d5bbb7caf8a, patch_sha256: ee0a1ef29dd7866b8cc54bf216472358262a9532e41ef2c9c4fe37b16a674e8a}
+  - {name: psf__requests-1142, repo: psf/requests, base: 22623bd8c265b78b161542663ee980738441c307, patch_sha256: c25c1f930edaf8514d3a5f2bc5631a8e8080ecb2511c789ec171f37d14e627a6}
+
 # NOT part of the eval. Present in dawson/ but never scored. Listed for reference only;
 # fetch.sh ignores this section.
 extras:
