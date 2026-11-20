@@ -172,7 +172,15 @@ def test_a_judge_that_narrates_once_is_asked_again(monkeypatch):
     replies = iter(['{"result": "I will now grade the diff."}', '{"result": "{\\"recall\\": 1}"}'])
     monkeypatch.setattr(util.subprocess, "run", lambda argv, **kwargs:
                         subprocess.CompletedProcess(argv, 0, next(replies), ""))
-    assert util.claude_json("grade", "opus") == {"recall": 1}
+    assert util.claude_json("grade", "opus") == ({"recall": 1}, None)
+
+
+def test_a_reply_that_could_not_be_used_is_still_counted_in_the_cost(monkeypatch):
+    replies = iter(['{"result": "I will now grade the diff.", "total_cost_usd": 0.02}',
+                    '{"result": "{\\"recall\\": 1}", "total_cost_usd": 0.03}'])
+    monkeypatch.setattr(util.subprocess, "run", lambda argv, **kwargs:
+                        subprocess.CompletedProcess(argv, 0, next(replies), ""))
+    assert util.claude_json("grade", "opus") == ({"recall": 1}, 0.05)
 
 
 def test_a_judge_that_hangs_is_a_hard_stop(monkeypatch):
@@ -190,7 +198,7 @@ def test_a_changelog_that_comes_back_as_a_list_is_still_written(tmp_path, monkey
     (tmp_path / "subject.md").write_text("old")
     cfg = type("Cfg", (), {"kind": "repo", "synth_prompt": "rewrite", "synth_model": "strong",
                            "subject": tmp_path / "subject.md"})
-    monkeypatch.setattr(optimize, "claude_json", lambda *args: {"subject": "new", "changelog": ["a", "b"]})
+    monkeypatch.setattr(optimize, "claude_json", lambda *args: ({"subject": "new", "changelog": ["a", "b"]}, None))
     assert optimize._synth(cfg, tmp_path, "weak", leg=None) == "new"
     assert "a" in (tmp_path / "changelog.md").read_text()
 

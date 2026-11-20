@@ -30,16 +30,19 @@ def test_bench_wires_end_to_end(tmp_path, monkeypatch):
 
     # stub judge: credit recall when the agent actually changed something
     def fake_grade(prompt, readme, answer, agent_diff, model, items=()):
-        return {"recall": 1.0 if agent_diff.strip() else 0.0, "precision": 1.0}
+        return {"recall": 1.0 if agent_diff.strip() else 0.0, "precision": 1.0}, 0.05
     monkeypatch.setattr(judge, "grade", fake_grade)
 
     board = engine.bench(cfg, tmp_path, cfg.models)
     leg = board[cfg.models[0]]
     assert leg["macro_recall"] == 1.0
     assert leg["macro_precision"] == 1.0
-    assert leg["resources"] == {"seconds": 2.0, "cost_usd": 0.02, "turns": 4}
+    assert leg["resources"] == {"seconds": 2.0, "cost_usd": 0.02, "turns": 4,
+                                "judge_cost_usd": 0.1}
     saved = json.loads((tmp_path / "scoreboard.json").read_text())
     assert set(saved[cfg.models[0]]["tasks"]) == {"primes", "ranges"}
+    grade = json.loads((tmp_path / cfg.models[0] / "primes" / "grade.json").read_text())
+    assert grade["_meta"]["judge_cost_usd"] == 0.05
 
 
 def _repo_config(repo, invokes):
@@ -64,7 +67,7 @@ def bench_two_tasks(repo, tmp_path, monkeypatch):
 
     def fake_grade(prompt, readme, answer, agent_diff, model, items=()):
         seen["readmes"].append(readme)
-        return {"recall": 1.0 if "+x = 2" in agent_diff else 0.0}
+        return {"recall": 1.0 if "+x = 2" in agent_diff else 0.0}, None
     monkeypatch.setattr(runner, "run", fake_run)
     monkeypatch.setattr(judge, "grade", fake_grade)
     cfg = _repo_config(repo, {"fixes": "fix it", "idles": "do nothing"})
@@ -89,7 +92,7 @@ def test_the_judge_reads_the_readme_the_baseline_commit_holds(repo, tmp_path, mo
     (repo / "README.md").write_text("left behind by an earlier run\n")
     readmes = []
     monkeypatch.setattr(runner, "run", lambda *args: {"seconds": 0, "cost_usd": None, "turns": None})
-    monkeypatch.setattr(judge, "grade", lambda prompt, readme, *rest: readmes.append(readme) or {"recall": 0})
+    monkeypatch.setattr(judge, "grade", lambda prompt, readme, *rest: readmes.append(readme) or ({"recall": 0}, None))
     cfg = _repo_config(repo, {"only": "do nothing"})
     engine.bench(cfg, tmp_path / "run", cfg.models)
     assert readmes == ["Fix x.\n"]
@@ -124,7 +127,7 @@ def test_a_task_s_ignored_paths_reach_neither_side_of_the_grade(repo, tmp_path, 
         return {"seconds": 0, "cost_usd": None, "turns": None}
     monkeypatch.setattr(runner, "run", fake_run)
     monkeypatch.setattr(judge, "grade", lambda prompt, readme, answer, agent_diff, model, items=():
-                        graded.update(answer=answer, agent=agent_diff) or {"recall": 1.0})
+                        graded.update(answer=answer, agent=agent_diff) or ({"recall": 1.0}, None))
     cfg = _repo_config(repo, {"only": "fix it"})
     cfg.corpus[0].ignore = ["notes.md"]
     engine.bench(cfg, tmp_path / "run", cfg.models)
@@ -137,7 +140,7 @@ def test_a_readme_named_in_lower_case_still_reaches_the_judge(repo, tmp_path, mo
     git(repo, "commit", "-qm", "lower case readme")
     readmes = []
     monkeypatch.setattr(runner, "run", lambda *args: {"seconds": 0, "cost_usd": None, "turns": None})
-    monkeypatch.setattr(judge, "grade", lambda prompt, readme, *rest: readmes.append(readme) or {"recall": 0})
+    monkeypatch.setattr(judge, "grade", lambda prompt, readme, *rest: readmes.append(readme) or ({"recall": 0}, None))
     cfg = _repo_config(repo, {"only": "do nothing"})
     engine.bench(cfg, tmp_path / "run", cfg.models)
     assert readmes == ["Fix x.\n"]
@@ -146,7 +149,7 @@ def test_a_readme_named_in_lower_case_still_reaches_the_judge(repo, tmp_path, mo
 def test_a_task_s_items_reach_the_judge(repo, tmp_path, monkeypatch):
     handed = []
     monkeypatch.setattr(runner, "run", lambda *args: {"seconds": 0, "cost_usd": None, "turns": None})
-    monkeypatch.setattr(judge, "grade", lambda *args: handed.append(args[5]) or {"recall": 0})
+    monkeypatch.setattr(judge, "grade", lambda *args: handed.append(args[5]) or ({"recall": 0}, None))
     cfg = _repo_config(repo, {"only": "do nothing"})
     cfg.corpus[0].items = ["x is 2"]
     engine.bench(cfg, tmp_path / "run", cfg.models)

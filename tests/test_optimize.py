@@ -65,8 +65,8 @@ class QuestionLoop(unittest.TestCase):
         cfg = config.load(self.root / "config.yaml")
         wrong = {"correct": 0, "why": "names someone else"}
         rewrite = {"subject": candidate, "changelog": "- changed"}
-        with patch.object(judge, "grade_answer", return_value=wrong), \
-                patch.object(optimize, "claude_json", return_value=rewrite) as synth:
+        with patch.object(judge, "grade_answer", return_value=(wrong, None)), \
+                patch.object(optimize, "claude_json", return_value=(rewrite, None)) as synth:
             kept = optimize.optimize(cfg, self.root / "run")
         return kept, synth
 
@@ -167,7 +167,7 @@ class RepoGrades(unittest.TestCase):
             subject.write_text("find the bug")
             cfg = SimpleNamespace(kind="repo", synth_prompt="rewrite it", subject=subject, synth_model="opus")
             rewrite = {"subject": "find the bug carefully", "changelog": ""}
-            with patch.object(optimize, "claude_json", return_value=rewrite) as synth:
+            with patch.object(optimize, "claude_json", return_value=(rewrite, None)) as synth:
                 optimize._synth(cfg, run_dir, "haiku", leg=None)
         self.assertIn('--- primes ---\n{"task": "primes", "recall": 0.5}', synth.call_args.args[0])
 
@@ -194,7 +194,7 @@ class RepoSplit(unittest.TestCase):
                 return {"weak": {"macro_recall": 0.5}}
             rewrite = {"subject": "find the bug carefully", "changelog": ""}
             with patch.object(engine, "bench", fake_bench), \
-                    patch.object(optimize, "claude_json", return_value=rewrite) as synth:
+                    patch.object(optimize, "claude_json", return_value=(rewrite, None)) as synth:
                 optimize.optimize(cfg, root / "run")
         self.assertEqual(benched, [(["held"], "baseline-holdout"), (["learn"], "baseline"),
                                    (["held"], "improved")])

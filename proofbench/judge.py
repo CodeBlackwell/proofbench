@@ -38,29 +38,31 @@ def _recall_over(items, result):
 
 
 def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=()):
+    """The judge's reply, and what asking for it cost."""
     prompt = (f"{judge_prompt}\n\n{_list_items(items)}"
               f"===== README =====\n{readme}\n\n"
               f"===== ANSWER_DIFF =====\n{answer_diff}\n\n"
               f"===== AGENT_DIFF =====\n{agent_diff}\n")
-    result = claude_json(prompt, model)
+    result, cost_usd = claude_json(prompt, model)
     if items:
         result["recall"] = _recall_over(items, result)
     if not numeric_fields(result):
         die("judge returned no numeric metric")
-    return result
+    return result, cost_usd
 
 
 def grade_answer(judge_prompt, question, result, model):
     """Grade one prose answer against the known answer. Only reached when an exact id match
     could not settle the question, so the judge reads words and numbers written as words,
-    never ids. A verdict that is not 1 or 0 is a hard stop, exactly as an empty grade is."""
+    never ids. A verdict that is not 1 or 0 is a hard stop, exactly as an empty grade is.
+    Returns the verdict and what asking for it cost."""
     expected = {"answer": question["answer"], "answer_names": question.get("answer_names", [])}
     prompt = (f"{judge_prompt}\n\n"
               f"===== QUESTION =====\n{question['text']}\n\n"
               f"===== EXPECTED =====\n{json.dumps(expected, ensure_ascii=False)}\n\n"
               f"===== AGENT_ANSWER =====\n{result.get('answer', '')}\n\n"
               f"===== AGENT_ANSWER_IDS =====\n{json.dumps(result['answer_ids'], ensure_ascii=False)}\n")
-    verdict = claude_json(prompt, model)
+    verdict, cost_usd = claude_json(prompt, model)
     if verdict.get("correct") not in (0, 1):
         die(f"answer judge returned no binary 'correct' on {question['id']}: {verdict}")
-    return verdict
+    return verdict, cost_usd

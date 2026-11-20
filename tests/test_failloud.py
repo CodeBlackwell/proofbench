@@ -58,7 +58,7 @@ def test_the_judge_is_started_with_no_tools_and_no_ambient_config(monkeypatch):
     """The judge reads a diff an agent wrote. It grades text, so it gets nothing to act with,
     and nothing from the directory or the user it happens to be launched under."""
     seen = _claude_prints(monkeypatch, 0, '{"result": "{\\"recall\\": 1}"}')
-    assert util.claude_json("grade this diff", "opus") == {"recall": 1}
+    assert util.claude_json("grade this diff", "opus") == ({"recall": 1}, None)
     argv = seen["argv"]
     assert argv[argv.index("--tools") + 1] == ""
     assert "--safe-mode" in argv

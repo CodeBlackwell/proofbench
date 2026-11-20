@@ -57,9 +57,9 @@ def grade_one(cfg, question, result, judge_model):
         return {"correct": correct, "graded_by": "abstention"}
     if ids_match(question, result):
         return {"correct": 1, "graded_by": "exact"}
-    verdict = judge.grade_answer(cfg.judge_prompt, question, result, judge_model)
+    verdict, cost_usd = judge.grade_answer(cfg.judge_prompt, question, result, judge_model)
     return {"correct": int(verdict["correct"]), "graded_by": "judge",
-            "judge_why": verdict.get("why", "")}
+            "judge_why": verdict.get("why", ""), "judge_cost_usd": cost_usd}
 
 
 def _ask_and_grade(cfg, question, trial, model, out_dir):

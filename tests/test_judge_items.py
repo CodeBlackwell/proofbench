@@ -20,8 +20,10 @@ def verdicts(*fixed):
 def grade(monkeypatch, reply, items=ITEMS):
     """Grade with a stub judge. Returns the grade and the prompt the judge was sent."""
     seen = {}
-    monkeypatch.setattr(judge, "claude_json", lambda prompt, model: seen.update(prompt=prompt) or reply)
-    return judge.grade("grade it", "the readme", "the answer", "the agent diff", "opus", items), seen["prompt"]
+    monkeypatch.setattr(judge, "claude_json",
+                        lambda prompt, model: seen.update(prompt=prompt) or (reply, None))
+    graded, _ = judge.grade("grade it", "the readme", "the answer", "the agent diff", "opus", items)
+    return graded, seen["prompt"]
 
 
 def test_the_judge_is_shown_each_item_under_its_id(monkeypatch):

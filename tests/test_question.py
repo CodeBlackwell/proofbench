@@ -112,10 +112,11 @@ class Grading(unittest.TestCase):
 
     def test_prose_answer_goes_to_the_judge(self):
         verdict = {"correct": 1, "why": "same person, given name written out"}
-        with patch.object(judge, "grade_answer", return_value=verdict) as judged:
+        with patch.object(judge, "grade_answer", return_value=(verdict, 0.02)) as judged:
             graded = self.grade(ANSWERABLE, result([], answer="Per Pettersson"))
         self.assertEqual(graded["correct"], 1)
         self.assertEqual(graded["graded_by"], "judge")
+        self.assertEqual(graded["judge_cost_usd"], 0.02)
         self.assertEqual(judged.call_count, 1)
 
     def test_abstention_is_correct_only_when_the_question_is_not_answerable(self):
@@ -138,12 +139,12 @@ class FailLoud(unittest.TestCase):
         self.log = Path(self.tmp.name) / "run.log"
 
     def test_a_non_binary_verdict_is_fatal(self):
-        with patch.object(judge, "claude_json", return_value={"correct": 0.5}):
+        with patch.object(judge, "claude_json", return_value=({"correct": 0.5}, None)):
             with self.assertRaises(HarnessError):
                 judge.grade_answer("prompt", ANSWERABLE, result([]), "judge-model")
 
     def test_a_verdict_with_no_correct_field_is_fatal(self):
-        with patch.object(judge, "claude_json", return_value={"why": "it narrated"}):
+        with patch.object(judge, "claude_json", return_value=({"why": "it narrated"}, None)):
             with self.assertRaises(HarnessError):
                 judge.grade_answer("prompt", ANSWERABLE, result([]), "judge-model")
 

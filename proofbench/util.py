@@ -57,19 +57,37 @@ def extract_json(envelope):
 CLAUDE_MINUTES = 15
 
 
+def sum_reported(costs):
+    """None, never zero, when nothing reported a cost: unreported and free are different facts."""
+    reported = [cost for cost in costs if cost is not None]
+    return round(sum(reported), 6) if reported else None
+
+
+def _read_cost(envelope):
+    try:
+        return json.loads(envelope).get("total_cost_usd")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+
+
 def claude_json(prompt, model):
     """Ask claude for one JSON object, and ask once more if the first reply was not one. A
     judge that narrated instead of grading has produced nothing to average around, so asking
-    again changes no number, and it keeps one flake from costing a whole leg of agent runs."""
+    again changes no number, and it keeps one flake from costing a whole leg of agent runs.
+
+    Returns the object and what the asking cost in USD. A first reply that could not be used
+    was still paid for, so it is counted."""
+    spent = []
     try:
-        return _ask_claude(prompt, model)
+        return _ask_claude(prompt, model, spent), sum_reported(spent)
     except HarnessError as first:
         log(f"claude gave no usable object ({first}); asking once more")
-        return _ask_claude(prompt, model)
+        return _ask_claude(prompt, model, spent), sum_reported(spent)
 
 
-def _ask_claude(prompt, model):
-    """Call claude headless and return the parsed JSON object it produced.
+def _ask_claude(prompt, model, spent):
+    """Call claude headless and return the parsed JSON object it produced, noting what the call
+    cost in ``spent`` before the reply is parsed.
 
     The prompt goes on STDIN, never argv: an embedded diff can exceed ARG_MAX and
     silently abort exec, which once manufactured a confident wrong number.
@@ -83,4 +101,5 @@ def _ask_claude(prompt, model):
         CLAUDE_MINUTES, input=prompt)
     if proc.returncode != 0:
         die(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout).strip()[:300]}")
+    spent.append(_read_cost(proc.stdout))
     return extract_json(proc.stdout)

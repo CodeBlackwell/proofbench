@@ -86,7 +86,8 @@ Details:
   kept, so two different names stay different.
 - The judge must return exactly 1 or 0. A fraction stops the run, because the scoreboard
   counts that field as correct answers.
-- Each record says which rule decided it, in `graded_by`.
+- Each record says which rule decided it, in `graded_by`. A record the judge decided also
+  says what that call cost, in `judge_cost_usd`.
 
 ## The numbers
 

@@ -45,7 +45,7 @@ def _synth(cfg, run_dir, model, leg):
     prompt = (f"{cfg.synth_prompt}\n\n"
               f"===== GRADES =====\n{grades}\n\n"
               f"===== CURRENT_SUBJECT =====\n{cfg.subject.read_text()}\n")
-    result = claude_json(prompt, cfg.synth_model)
+    result, _ = claude_json(prompt, cfg.synth_model)
     candidate, changelog = result.get("subject"), result.get("changelog", "")
     if not isinstance(candidate, str) or not candidate.strip():
         die("synth produced no subject")

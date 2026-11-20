@@ -73,6 +73,10 @@ The runner does a repo task. It is started once per task per model.
 
 An agent that changes nothing leaves an empty diff. That diff is still graded and counted.
 
+To grade a diff you already have, use `corpora/replay.sh` as the runner and put the patch's
+full path in `invoke`. It applies the patch where an agent would have worked, so the same
+diff can be graded as often as needed and no agent is paid for.
+
 ## The question arm
 
 An arm answers one question. It is started once per question, per trial, per model.
@@ -152,7 +156,7 @@ runs/<run-id>/
     <task>/
       run.log                          what the agent printed
       agent.diff                       what the agent changed
-      grade.json                       the judge's reply, plus cost and timing
+      grade.json                       the judge's reply, plus cost and timing for both
 ```
 
 A question corpus:
@@ -183,7 +187,7 @@ runs/<run-id>/
     "macro_recall": 0.75,
     "macro_precision": 1.0,
     "empty_captures": ["ranges"],
-    "resources": {"seconds": 35.4, "cost_usd": 0.0168, "turns": 14}
+    "resources": {"seconds": 35.4, "cost_usd": 0.0168, "turns": 14, "judge_cost_usd": 0.0912}
   }
 }
 ```
@@ -195,7 +199,9 @@ runs/<run-id>/
 - `empty_captures`: tasks where the agent changed nothing. They are graded and averaged like
   any other. The key is absent when there are none.
 - `resources`: seconds, cost and turns added up across the tasks. Cost and turns are null
-  unless the runner reported them. The judge's own cost is not included.
+  unless the runner reported them.
+- `judge_cost_usd`, inside `resources`: what the judge cost across the tasks, kept apart from
+  the agents' `cost_usd`. A reply the judge had to be asked for twice counts both times.
 
 ## The question scoreboard
 

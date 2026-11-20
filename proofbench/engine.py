@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import capture, judge, question, runner
-from .util import die, log
+from .util import die, log, sum_reported
 
 
 def _ground_truth(cfg, run_dir):
@@ -49,8 +49,9 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
     log(f"[{model}] {task.name}: {meta['seconds']}s{cost}"
         + (f", {meta['turns']} turns" if meta["turns"] else ""))
     (out_dir / "agent.diff").write_text(agent_diff)
-    grade = judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model, task.items)
-    grade.update(task=task.name, _meta=meta)
+    grade, judge_cost = judge.grade(cfg.judge_prompt, readme, answer, agent_diff,
+                                    cfg.judge_model, task.items)
+    grade.update(task=task.name, _meta={**meta, "judge_cost_usd": judge_cost})
     if not agent_diff.strip():
         grade["empty_capture"] = True
         log(f"\033[33m[{model}] {task.name}: EMPTY diff: the agent changed nothing, and the "
@@ -61,13 +62,14 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
 
 def _resources(grades):
     """Sum cost + wall-clock across the whole leg, empty captures included: a run that
-    changed nothing still spent money and time. cost_usd is None when no leg task reported
-    it (a non-claude runner)."""
+    changed nothing still spent money and time. cost_usd is the agents' and judge_cost_usd the
+    judge's, kept apart because a replayed diff costs only the second. Either is None when no
+    task reported it (a non-claude runner)."""
     metas = [g.get("_meta", {}) for g in grades]
-    costs = [m["cost_usd"] for m in metas if m.get("cost_usd") is not None]
     return {"seconds": round(sum(m.get("seconds") or 0 for m in metas), 1),
-            "cost_usd": round(sum(costs), 4) if costs else None,
-            "turns": sum(m.get("turns") or 0 for m in metas) or None}
+            "cost_usd": sum_reported(m.get("cost_usd") for m in metas),
+            "turns": sum(m.get("turns") or 0 for m in metas) or None,
+            "judge_cost_usd": sum_reported(m.get("judge_cost_usd") for m in metas)}
 
 
 def aggregate(grades):
