@@ -109,6 +109,32 @@ swebench:
   - {name: django__django-11099, repo: django/django, base: d26b2424437dabeeca94d7900b37d2df4410da0c, patch_sha256: cf203df5a90df3747f2d9a59cb0d02620d70228c29cb0c3477e5509056c19c09}
   - {name: django__django-16082, repo: django/django, base: bf47c719719d0e190a99fa2e7f959d5bbb7caf8a, patch_sha256: ee0a1ef29dd7866b8cc54bf216472358262a9532e41ef2c9c4fe37b16a674e8a}
   - {name: psf__requests-1142, repo: psf/requests, base: 22623bd8c265b78b161542663ee980738441c307, patch_sha256: c25c1f930edaf8514d3a5f2bc5631a8e8080ecb2511c789ec171f37d14e627a6}
+  - {name: django__django-10880, repo: django/django, base: 838e432e3e5519c5383d12018e6c78f8ec7833c1, patch_sha256: 368159ac79ebf4e6772a128199ec8d64b4e5db571d99bce2d0dec42733974e31}
+  - {name: django__django-11066, repo: django/django, base: 4b45b6c8e4d7c9701a332e80d3b1c84209dc36e2, patch_sha256: ee3b84ed76d44a90804ae0af1440ddc0edeedfcfcdd3a991df3be3cdcdd65848}
+  - {name: sympy__sympy-11618, repo: sympy/sympy, base: 360290c4c401e386db60723ddb0109ed499c9f6e, patch_sha256: 2dcab4569a942fedbfd80ffa3d8b0a97f03a7b806d35698824dc38e767ebec84}
+  - {name: sympy__sympy-12096, repo: sympy/sympy, base: d7c3045115693e887bcd03599b7ca4650ac5f2cb, patch_sha256: b5eaffb5e3953d415a156911f68c9c74d4e91f8e5931036f8e2cd06e0088a8f6}
+  - {name: sphinx-doc__sphinx-10323, repo: sphinx-doc/sphinx, base: 31eba1a76dd485dc633cae48227b46879eda5df4, patch_sha256: c5ca13567dea50fa6203dd33dbb0e89bf85d8e0854ade535fae80a530815f024}
+  - {name: matplotlib__matplotlib-20488, repo: matplotlib/matplotlib, base: b7ce415c15eb39b026a097a2865da73fbcf15c9c, patch_sha256: d4a54cfb2e82e869c697c33a5051f5f00753f12ad7aa5a79530e9ebe98954736}
+  - {name: scikit-learn__scikit-learn-10908, repo: scikit-learn/scikit-learn, base: 67d06b18c68ee4452768f8a1e868565dd4354abf, patch_sha256: eb73df0dcb9bcb8749a7832d29fad9d2d10d2dacf2e9f6026d53eb8e39f32070}
+  - {name: astropy__astropy-13453, repo: astropy/astropy, base: 19cc80471739bcb67b7e8099246b391c355023ee, patch_sha256: 7f579408e4ad94b129886283f9c6df7d27d3965e2aaaa88141045515dd4710d9}
+  - {name: pydata__xarray-2905, repo: pydata/xarray, base: 7c4e2ac83f7b4306296ff9b7b51aaf016e5ad614, patch_sha256: 4bf05606ff37d427b5d1eff27a61b41489785d022c234933fbc8879cad5fd762}
+  - {name: pytest-dev__pytest-10051, repo: pytest-dev/pytest, base: aa55975c7d3f6c9f6d7f68accc41bb7cadf0eb9a, patch_sha256: 9662c12536a07d0cc5a6ce6f781edb31ea013af4df0e156522ca624aaed634c0}
+  - {name: pylint-dev__pylint-6386, repo: pylint-dev/pylint, base: 754b487f4d892e3d4872b6fc7468a71db4e31c13, patch_sha256: 9f82c0b5df51c65fbbe78c3f24bda13c07571ab541c2e50d0ee15a9aabbeef45}
+  - {name: mwaskom__seaborn-3069, repo: mwaskom/seaborn, base: 54cab15bdacfaa05a88fbc5502a5b322d99f148e, patch_sha256: f209d3f9733c3c4bdcafb48f8601948c53ee16451e7775b33186439ccac7096c}
+  - {name: django__django-11095, repo: django/django, base: 7d49ad76562e8c0597a0eb66046ab423b12888d8, patch_sha256: 07f41206809adfd7ee84e077b441ac4a048e5250ad0e4c5c1667abff8e4bd048}
+  - {name: django__django-11119, repo: django/django, base: d4df5e1b0b1c643fe0fc521add0236764ec8e92a, patch_sha256: 3d9645b53ff296d6e932fb375ea417a6186106c60eec6aa74c8319db2c0d820b}
+  - {name: django__django-11133, repo: django/django, base: 879cc3da6249e920b8d54518a0ae06de835d7373, patch_sha256: a0fd6d0a4a1c733a1c6f98cbb524604ea24e643c26c5fcb152be4bfb29fb1c3d}
+  - {name: django__django-11138, repo: django/django, base: c84b91b7603e488f7171fdff8f08368ef3d6b856, patch_sha256: 9ae4408e05d1a96259df33cc7606befd29e043cfb334bfecbf254fd643df0cb8}
+  - {name: django__django-11141, repo: django/django, base: 5d9cf79baf07fc4aed7ad1b06990532a65378155, patch_sha256: 924503df37ffda93f8c76bb1d615f2c5cd8a16f914bd76d63e9072de676514ee}
+  - {name: django__django-11163, repo: django/django, base: e6588aa4e793b7f56f4cadbfa155b581e0efc59a, patch_sha256: 9a949d65f5bc033837aecc943990cd9a49c550dcc3bb820e111385f791991f47}
+  - {name: sympy__sympy-12419, repo: sympy/sympy, base: 479939f8c65c8c2908bbedc959549a257a7c0b0b, patch_sha256: 18794d75ba41397df2db6f4bad1c870a0d15be216987b0f594d5fdf11ded7f99}
+  - {name: sympy__sympy-12481, repo: sympy/sympy, base: c807dfe7569692cad24f02a08477b70c1679a4dd, patch_sha256: cf4d267adb348d9e32db710c5ea9b2f3975c4372e8055ad5a1e6f5392d822a17}
+  - {name: sympy__sympy-12489, repo: sympy/sympy, base: aa9780761ad8c3c0f68beeef3a0ce5caac9e100b, patch_sha256: 6c98224f6e17ffefb72f3587295a9f72b9afba94e79b39e156a137603f258ab8}
+  - {name: sphinx-doc__sphinx-10466, repo: sphinx-doc/sphinx, base: cab2d93076d0cca7c53fac885f927dde3e2a5fec, patch_sha256: 22dcf920cefa9d231e88032a81ba21641de55211c5417845fe94e996304dd4d9}
+  - {name: matplotlib__matplotlib-20826, repo: matplotlib/matplotlib, base: a0d2e399729d36499a1924e5ca5bc067c8396810, patch_sha256: 95b743f7c62be8994b7afc0d3c3fe4ba4362baf39ab0c91f31ac26e97550ce7f}
+  - {name: scikit-learn__scikit-learn-11310, repo: scikit-learn/scikit-learn, base: 553b5fb8f84ba05c8397f26dd079deece2b05029, patch_sha256: 882c13f9a1549b5168b13380424d4b94e04fd9bbe3e4a11b728064768c9eeeaf}
+  - {name: pydata__xarray-3095, repo: pydata/xarray, base: 1757dffac2fa493d7b9a074b84cf8c830a706688, patch_sha256: 15ee0073513dfa4723e55f92c67f7ca66c9651a6d627c08c06e7bada6bcd7525}
+  - {name: pytest-dev__pytest-10081, repo: pytest-dev/pytest, base: da9a2b584eb7a6c7e924b2621ed0ddaeca0a7bea, patch_sha256: 30b7bbcd61e92e71c186f5c36c622301a6d5dde818e67c97535fa30d7897af93}
 
 # NOT part of the eval. Present in dawson/ but never scored. Listed for reference only;
 # fetch.sh ignores this section.
