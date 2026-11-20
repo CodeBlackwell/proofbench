@@ -57,8 +57,9 @@ they teach nothing. The counterintuitive consequence: the weak model is not the 
 this setup, it is the only source of signal. Its misses are the curriculum.
 
 So proofbench is model-sweep native. `models:` is a list, and `optimize` drives the **weakest**
-leg on purpose. To keep the signal clean, `judge_model` and `synth_model` are held constant and
-default to a strong model. You never let the model under test grade its own homework or rewrite
+leg on purpose, the last entry of `models`. To keep the signal clean, `judge_model` and
+`synth_model` are held constant and default to the first entry, so list the strongest model
+first or name them yourself. You never let the model under test grade its own homework or rewrite
 its own instructions.
 
 ## 3. A prose gate is a request, not a guarantee

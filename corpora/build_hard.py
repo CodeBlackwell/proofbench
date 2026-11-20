@@ -21,7 +21,9 @@ def _get(url):
 
 
 def _git(repo, *args):
-    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
+    proc = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise SystemExit(f"git {' '.join(args)} failed in {repo}: {proc.stderr.strip()}")
 
 
 def build(name, fname, buggy, fixed, readme):
@@ -58,8 +60,9 @@ def repodebug_instance(repo_name="ivoanjo/gvl-tracing", error_type="wrong_return
 
 def apply_perturbation(upstream, diff):
     """RepoDebug diff is original->buggy; '-' lines (originals) must exist in upstream."""
-    rem = "\n".join(l[1:] for l in diff.splitlines() if l[:1] == "-" and l[:3] != "---")
-    add = "\n".join(l[1:] for l in diff.splitlines() if l[:1] == "+" and l[:3] != "+++")
+    lines = [l for l in diff.splitlines() if not l.startswith(("--- ", "+++ "))]  # file headers
+    rem = "\n".join(l[1:] for l in lines if l[:1] == "-")
+    add = "\n".join(l[1:] for l in lines if l[:1] == "+")
     if rem not in upstream:
         raise SystemExit("upstream drifted: perturbation no longer applies")
     return upstream.replace(rem, add, 1)

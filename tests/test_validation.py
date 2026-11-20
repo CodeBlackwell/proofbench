@@ -209,3 +209,33 @@ def test_two_runs_with_no_run_id_get_a_folder_each(tmp_path, monkeypatch):
     first.mkdir(parents=True)
     (first / "scoreboard.json").write_text("{}")
     assert cli.run_dir(None) != first
+
+
+# ---- what an installed copy ships
+
+REPO_TASK = "\n  - {name: primes, path: ., invoke: fix, default_branch: buggy, answer_branch: fixed}"
+
+
+def test_a_repo_corpus_can_name_the_prompts_proofbench_ships(tmp_path):
+    (tmp_path / "subject.md").write_text("subject")
+    (tmp_path / "config.yaml").write_text(
+        f"models: [weak]\njudge: default\nsynth: default\nsubject: subject.md\ncorpus:{REPO_TASK}\n")
+    cfg = config.load(tmp_path / "config.yaml")
+    assert "ANSWER_DIFF" in cfg.judge_prompt
+    assert "CURRENT_SUBJECT" in cfg.synth_prompt
+
+
+def test_a_question_corpus_is_shipped_no_prompt_and_has_to_bring_its_own(tmp_path):
+    with pytest.raises(HarnessError, match="its own"):
+        load(tmp_path, judge="default")
+
+
+def test_the_cli_reports_the_version_the_package_was_built_as(capsys, monkeypatch):
+    import importlib.metadata
+    import proofbench
+    monkeypatch.setattr("sys.argv", ["proofbench", "--version"])
+    with pytest.raises(SystemExit) as stopped:
+        cli.main()
+    assert stopped.value.code == 0
+    assert capsys.readouterr().out.strip() == f"proofbench {proofbench.__version__}"
+    assert proofbench.__version__ == importlib.metadata.version("proofbench")

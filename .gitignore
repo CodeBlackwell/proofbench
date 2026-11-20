@@ -7,4 +7,5 @@ examples/sample-corpus/repos/
 corpora/repos/
 .venv/
 .pytest_cache/
+.coverage
 uv.lock

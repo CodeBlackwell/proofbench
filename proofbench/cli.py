@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import config, engine, optimize, scoreboard
+from . import __version__, config, engine, optimize, scoreboard
 from .util import HarnessError, die, log
 
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
@@ -70,6 +70,7 @@ def cmd_optimize(cfg, args):
 
 def main():
     parser = argparse.ArgumentParser(prog="proofbench")
+    parser.add_argument("--version", action="version", version=f"proofbench {__version__}")
     parser.add_argument("command", choices=["run", "optimize"])
     parser.add_argument("--config")
     parser.add_argument("--demo", action="store_true")

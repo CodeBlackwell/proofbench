@@ -22,10 +22,11 @@ objective: macro_recall
 concurrency: 3
 max_turns: 200
 
-judge: ../prompts/judge.md
+judge: default
 
 # BugFix (already validated via the deterministic Workflow in Round 4) and the duplicate
-# sf-wdi-24 debugging-challenges are excluded; these 3 are the active sweep.
+# sf-wdi-24 debugging-challenges are excluded. The active sweep is the 5 entries below: 3 of
+# the manifest's easy repos, then the 2 hard cases corpora/build_hard.py builds.
 #
 # invoke drives the crg-debugger SUBAGENT (sequential, single in-context session), not the
 # background /crg-debug Workflow: the subagent honors --model haiku and applies fixes

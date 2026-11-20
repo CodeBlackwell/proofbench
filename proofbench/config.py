@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from . import runner
-from .corpus import QuestionSet, Task, read_corpus  # noqa: F401
+from .corpus import QuestionSet, Task, read_corpus  # Task and QuestionSet are read as config.Task
 from .util import die
 
 # pass^3, pass@3, and the names an abstention only leg carries them under.
@@ -103,9 +103,15 @@ def _read_file(raw, key, resolve):
     return path if path is None or path.is_file() else die(f"{key} file not found: {path}")
 
 
-def _read_prompt(raw, key, resolve):
-    path = _read_file(raw, key, resolve)
-    return path.read_text() if path else None
+def _read_prompt(raw, key, resolve, kind):
+    """`default` names the prompt proofbench ships inside the package, so an installed copy has
+    one. It ships them for a repo task only: an answer rubric knows the domain it grades."""
+    if raw.get(key) != "default":
+        path = _read_file(raw, key, resolve)
+        return path.read_text() if path else None
+    if kind != "repo":
+        die(f"{key}: default is the repo task's prompt; a {kind} corpus has to bring its own")
+    return (Path(__file__).parent / "prompts" / f"{key}.md").read_text()
 
 
 def _read_trials(raw, kind):
@@ -157,11 +163,11 @@ def _build_config(raw, root, resolve, kind, tasks):
         objective=_read_objective(raw, kind, trials),
         concurrency=_read_count(raw, "concurrency", 3),
         max_turns=_read_count(raw, "max_turns", 200),
-        judge_prompt=_read_prompt(raw, "judge", resolve) or die("config has no judge prompt"),
+        judge_prompt=_read_prompt(raw, "judge", resolve, kind) or die("config has no judge prompt"),
         corpus=tasks,
         runner_args=_read_runner_args(raw, kind),
         subject=_read_file(raw, "subject", resolve),
-        synth_prompt=_read_prompt(raw, "synth", resolve),
+        synth_prompt=_read_prompt(raw, "synth", resolve, kind),
         kind=kind, trials=trials, timeout_minutes=_read_timeout(raw),
     )
 

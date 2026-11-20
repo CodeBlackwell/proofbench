@@ -11,9 +11,9 @@ objective: macro_recall
 concurrency: 2
 max_turns: 120
 
-judge: ../prompts/judge.md
+judge: default            # the judge prompt proofbench ships; or a path to your own
 # subject: ~/.claude/skills/crg-debug/SKILL.md
-# synth:   ../prompts/synth.md
+# synth:   default
 
 corpus:
   - name: primes

@@ -1,0 +1,41 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262          # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86        # v5
+      # Without the demo corpus the end-to-end engine test skips itself and says nothing.
+      - run: bash examples/sample-corpus/build.sh
+      - run: uv run --python ${{ matrix.python }} pytest -q
+
+  wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262          # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86        # v5
+      - run: uv build
+      - run: uvx twine check dist/*
+      # The tests run against the checkout. This runs what a user installs: the wheel alone,
+      # from an empty directory, has to start, carry its prompts and grade the offline demo.
+      - name: smoke test the installed wheel
+        run: |
+          repo="$PWD"
+          wheel="$(ls "$repo"/dist/*.whl)"
+          cd "$(mktemp -d)"
+          uvx --from "$wheel" proofbench --version
+          uvx --from "$wheel" python -c "from importlib.resources import files; assert (files('proofbench') / 'prompts' / 'judge.md').is_file()"
+          uvx --from "$wheel" proofbench run --config "$repo/examples/question-demo/proofbench.question.yaml"

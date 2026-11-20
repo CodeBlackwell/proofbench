@@ -2,10 +2,11 @@
 #
 # This is the corpus the crg-debug evaluation used: 7 tasks total, 4 easy
 # debugging-interview repos plus 3 Tier-1 hard cases. `ready` entries are public repos
-# pinned to an exact commit; `bash fetch.sh` clones each into ./repos (gitignored) at its
-# pin and materializes the broken default branch + the answer branch.
+# pinned to exact commits; `bash fetch.sh` clones each into ./repos (gitignored) and
+# materializes the broken default branch at `pin` and the answer branch at `answer_pin`.
 #
-# Pins are recorded so a fetch is reproducible: the same manifest yields the same repos.
+# Both sides are pinned so a fetch is reproducible: the same manifest yields the same
+# ground-truth diff, even after upstream moves its answer branch.
 
 # The 4 easy repos, scored as the main sweep.
 ready:
@@ -14,24 +15,28 @@ ready:
     default_branch: master
     answer_branch: working
     pin: 21177bda401cd0128aefbce1b80e1bed98676ad7
+    answer_pin: 7a082025e1c83a6979b36621830dfab0cd6b2dfe
 
   - name: BugFix
     url: https://github.com/IIIT-Delhi/BugFix.git
     default_branch: main
     answer_branch: solution
     pin: 924895ea7dd687b409222c0ce91eec7f3c883f78
+    answer_pin: a2396d330208682671cbda6380eba20f123371f8
 
   - name: ph2-raccoon-saloon-debugging-challenge
     url: https://github.com/brewchetta/ph2-raccoon-saloon-debugging-challenge.git
     default_branch: main
     answer_branch: solution
     pin: 72f52d697b6f40fb41b8f708a76cbc4540accf85
+    answer_pin: b0eea195710ac6aaa7022dfd0f84676d16abd847
 
   - name: react-debug-practice
     url: https://github.com/ArohanD/react-debug-practice.git
     default_branch: master
     answer_branch: solution
     pin: 7400054f7add23c2ec401152197c2056f2b3d7a6
+    answer_pin: 7b872e18ab281963e487b12f02616c5d77260d7c
 
 # The 3 Tier-1 hard cases, scored individually. Real upstream provenance found (buggy =
 # parent of the fix commit, fixed = the fix commit). Already constructed locally in

@@ -18,8 +18,8 @@ models: [opus, sonnet, haiku]                   # haiku is the weak leg `optimiz
 judge_model: opus
 synth_model: opus
 objective: macro_recall
-judge: ../../prompts/judge.md
-synth: ../../prompts/synth.md                   # `optimize` also needs some corpus entries marked `holdout: true`
+judge: default                                  # the prompts proofbench ships
+synth: default                                  # `optimize` also needs some corpus entries marked `holdout: true`
 
 corpus:
   # your bug-fix repos, each with a broken default branch and a fixed solution branch.
@@ -31,9 +31,11 @@ corpus:
     answer_branch: fixed
 ```
 
+Save that as `proofbench.yaml` beside your corpus, then:
+
 ```bash
-proofbench run      --config examples/crg-debug/proofbench.yaml   # measure across the sweep
-proofbench optimize --config examples/crg-debug/proofbench.yaml   # improve SKILL.md from misses
+proofbench run      --config proofbench.yaml   # measure across the sweep
+proofbench optimize --config proofbench.yaml   # improve SKILL.md from misses
 ```
 
 The original evaluation that produced the lessons in METHODOLOGY.md ran exactly this shape over

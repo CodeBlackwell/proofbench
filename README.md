@@ -28,14 +28,16 @@ way (see [METHODOLOGY.md](METHODOLOGY.md)):
 uv tool install proofbench      # or: uvx proofbench
 ```
 
-Requires the `claude` CLI on PATH for the default runner and for the judge.
+Requires the `claude` CLI on PATH for the default runner and for the judge. The install carries
+the engine and the two repo-task prompts (`judge: default`, `synth: default`); the examples and
+the corpus scripts live in the repository.
 
 ## Quickstart (demo)
 
 ```bash
 git clone https://github.com/CodeBlackwell/proofbench && cd proofbench
 bash examples/sample-corpus/build.sh        # builds two toy repos with buggy + fixed branches
-uvx --from . proofbench run --demo          # eval an agent over them, graded vs the answers
+uv run proofbench run --demo                # eval an agent over them, graded vs the answers
 ```
 
 ## How it works
@@ -52,8 +54,8 @@ runner: claude                                  # default adapter; any executabl
 models: [opus, sonnet, haiku]                   # the driver sweep; the weak leg is the signal
 judge_model: opus                               # held constant; never let a model grade itself
 objective: macro_recall                         # the metric the keep/revert gate reads
-judge: prompts/judge.md
-synth: prompts/synth.md                          # present => `optimize` is available
+judge: default                                  # the shipped repo-task prompt, or a path to yours
+synth: default                                  # present => `optimize` is available
 timeout_minutes: 60                             # optional; one attempt running longer stops the run
 corpus:
   - name: primes

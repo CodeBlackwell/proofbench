@@ -10,7 +10,6 @@ models: [stub]
 judge_model: opus          # held constant, and only reached when an id match cannot settle it
 objective: tokens_per_correct
 concurrency: 2
-max_turns: 1
 
 # runner_args are appended to the arm's argv after --model MODEL. The oracle needs none. A real
 # arm is told here which frozen corpus to read, so the config alone says what the run ran

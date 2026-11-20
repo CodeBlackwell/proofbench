@@ -3,23 +3,26 @@ on:
   push:
     tags: ["v*"]
 
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv run --with pytest --with pyyaml pytest tests/ -q
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   publish:
-    needs: test
+    needs: ci
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      contents: read
       id-token: write          # Trusted Publishing (OIDC); no PYPI_TOKEN in CI
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262          # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86        # v5
+      # A tag that disagrees with the package would publish one version under another's name.
+      - name: the tag names the version being published
+        run: test "v$(uv run python -c 'import proofbench; print(proofbench.__version__)')" = "$GITHUB_REF_NAME"
       - run: uv build
       - run: uvx twine check dist/*
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # release/v1
