@@ -18,6 +18,10 @@ proofbench = "proofbench.cli:main"
 [dependency-groups]
 dev = ["pytest>=8"]
 
+[tool.pytest.ini_options]
+# A bare `pytest` used to collect test files agents had left in the ignored corpus clones.
+testpaths = ["tests"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
