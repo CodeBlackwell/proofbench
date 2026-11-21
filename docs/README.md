@@ -19,6 +19,12 @@ Start with the [README](../README.md). These pages go deeper.
 | [../METHODOLOGY.md](../METHODOLOGY.md) | Why the tool is built the way it is |
 | [../examples/crg-debug/README.md](../examples/crg-debug/README.md) | A real config for a real skill |
 
+## Plans
+
+| Page | What it covers |
+|---|---|
+| [builder-plan.md](builder-plan.md) | The agreed design for the eval builder, and the phases it is built in |
+
 ## Records
 
 These describe the evaluation that produced the tool, as it ran at the time.

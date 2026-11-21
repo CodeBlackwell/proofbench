@@ -205,16 +205,17 @@ class RepoSplit(unittest.TestCase):
 class Gate(unittest.TestCase):
 
     def test_a_higher_rate_is_kept_and_a_lower_one_is_not(self):
-        self.assertTrue(optimize._did_not_regress("pass^3", 0.4, 0.6))
-        self.assertFalse(optimize._did_not_regress("pass^3", 0.6, 0.4))
+        self.assertTrue(optimize._improved("pass^3", 0.4, 0.6))
+        self.assertFalse(optimize._improved("pass^3", 0.6, 0.4))
 
     def test_a_lower_token_price_is_kept_and_a_higher_one_is_not(self):
-        self.assertTrue(optimize._did_not_regress("tokens_per_correct", 800.0, 600.0))
-        self.assertFalse(optimize._did_not_regress("tokens_per_correct", 600.0, 800.0))
+        self.assertTrue(optimize._improved("tokens_per_correct", 800.0, 600.0))
+        self.assertFalse(optimize._improved("tokens_per_correct", 600.0, 800.0))
 
-    def test_an_unchanged_score_is_kept(self):
-        self.assertTrue(optimize._did_not_regress("macro_recall", 0.5, 0.5))
-        self.assertTrue(optimize._did_not_regress("tokens_per_correct", 700.0, 700.0))
+    def test_an_unchanged_score_is_reverted(self):
+        """A rewrite that changes nothing must not be reported as one that helped."""
+        self.assertFalse(optimize._improved("macro_recall", 0.5, 0.5))
+        self.assertFalse(optimize._improved("tokens_per_correct", 700.0, 700.0))
 
 
 if __name__ == "__main__":

@@ -175,7 +175,7 @@ Checked a moment later, still before any agent runs:
 
 - A branch does not exist, or the answer branch changes nothing.
 - A question line is not JSON, or is missing a required field. The error names the line.
-- Two questions share an id, or a question is off the [grid](question-tasks.md#the-grid).
+- Two questions share an id.
 
 ## Complete examples
 

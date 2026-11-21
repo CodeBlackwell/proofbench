@@ -10,16 +10,9 @@ from pathlib import Path
 
 from .util import die, spawn
 
+# What one agent's tools leave behind is that corpus's business: it goes in the task's `ignore`.
 _EXCLUDES = [":(exclude,glob)**/node_modules/**", ":(exclude,glob)**/.venv/**",
-             ":(exclude,glob)**/__pycache__/**", ":(exclude,glob)**/.code-review-graph/**"]
-
-# Multi-assistant MCP scaffolding that `code-review-graph build` scatters at the repo root to
-# advertise its tools. It is deterministic tool scratch, never an agent fix, so it must not
-# count against precision when grading a graph-driven debugger.
-_EXCLUDES += [f":(exclude,glob){p}" for p in (
-    ".mcp.json", ".opencode.json", ".cursorrules", ".windsurfrules",
-    "AGENTS.md", "CLAUDE.md", "GEMINI.md", "QODER.md",
-    ".claude/**", ".cursor/**", ".gemini/**", ".kiro/**", ".qoder/**")]
+             ":(exclude,glob)**/__pycache__/**"]
 
 
 def _git(repo, *args):

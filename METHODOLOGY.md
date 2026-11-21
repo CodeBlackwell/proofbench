@@ -54,9 +54,6 @@ It was not a crash. It was a plausible lie.
   `abstention_rate` instead.
 - **Measured is a positive claim.** A leg counts as a measurement only when the arm says it
   was not canned and says what it cost. Silence is not evidence.
-- **The grid's axes come from the design, never from the data.** A table drawn over the cells
-  that happen to be filled looks complete with two cells of fifteen. Every cell prints, and an
-  empty one prints as empty.
 
 ## 2. The weak model is the signal
 

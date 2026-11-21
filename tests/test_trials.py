@@ -77,11 +77,6 @@ class PassRates(unittest.TestCase):
         self.assertEqual(leg["abstention_pass@3"], 1.0)
         self.assertNotIn("pass^3", leg)
 
-    def test_the_grid_reads_a_pass_rate_like_any_other_metric(self):
-        printed = scoreboard.grid(steady_and_shaky(), "tier", "hops", "pass^3").splitlines()
-        self.assertEqual(printed[0], "pass^3 by tier x hops")
-        self.assertEqual(printed[3].split("|")[1].split()[0], "0.5")
-
     def test_a_pass_rate_is_an_objective_the_gate_can_read(self):
         self.assertEqual(engine.objective_of(self.leg, "pass^3"), 0.5)
 

@@ -1,6 +1,6 @@
 # The optimize loop
 
-`optimize` rewrites a skill from its own misses and keeps the rewrite only if the score holds.
+`optimize` rewrites a skill from its own misses and keeps the rewrite only if the score improves.
 The model proposes. A comparison of two numbers decides.
 
 [Back to the README](../README.md)
@@ -47,7 +47,7 @@ flowchart TD
   b --> c["3. Synth rewrites the subject<br/>from the misses"]
   c --> d["4. Install the rewrite"]
   d --> e["5. Score the held-out entries again"]
-  e --> f{"6. No worse?"}
+  e --> f{"6. Strictly better?"}
   f -- yes --> keep["KEPT"]
   f -- no --> revert["REVERTED<br/>original put back"]
 ```
@@ -57,7 +57,8 @@ flowchart TD
 3. **The synth rewrites the subject** from those misses.
 4. **The rewrite is installed** in place of the subject.
 5. **The held-out entries are scored again.**
-6. **The two scores are compared.** No worse means kept. Worse means reverted.
+6. **The two scores are compared.** Strictly better means kept. The same or worse means
+   reverted.
 
 Everything runs against the **last** entry of `models`, the weakest. Only misses teach, and a
 strong model on easy tasks misses nothing.
@@ -94,8 +95,8 @@ The comparison runs in the direction that is better for the objective.
 
 | Objective | Kept when |
 |---|---|
-| A rate, a recall, `pass^k`, `pass@k` | The new score is the same or higher |
-| `tokens_per_correct`, `tokens_per_correct_abstention` | The new score is the same or lower |
+| A rate, a recall, `pass^k`, `pass@k` | The new score is higher |
+| `tokens_per_correct`, `tokens_per_correct_abstention` | The new score is lower |
 
 - The verdict comes from the comparison alone. Nothing the model says can change it.
 - An objective that is undefined on a leg stops the run. A leg with nothing correct has no
@@ -137,7 +138,9 @@ Inside `runs/<run-id>/`:
 
 ## Limits to know
 
-- **A tie is kept.** A rewrite that changes nothing on the held-out entries passes the gate.
+- **A tie is reverted.** A rewrite that scores the same as the baseline changed nothing the
+  gate can see, so it is not kept. A baseline already at the best possible score can never
+  be improved on, and every rewrite of it is reverted.
 - **One run is one sample.** Agents are not deterministic. A small held-out set can move by
   chance, so use enough entries, or `trials` on a question corpus, to trust a verdict.
 - **One rewrite per run.** `optimize` does not loop. Run it again to try another step.

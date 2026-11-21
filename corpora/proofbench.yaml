@@ -40,17 +40,20 @@ judge: default
 #
 # `ignore` leaves out what an answer branch carries beside the fix (a rebuilt bundle, a rewritten
 # README, a file of answer notes), so recall is not graded on files no agent should reproduce.
+# Every task also ignores the scratch that `code-review-graph build` scatters through a repo to
+# advertise its tools: the graph folder at any depth, and assistant scaffolding at the root. It
+# is never the agent's fix, so it must not count against precision.
 #
 # invoke drives the crg-debugger SUBAGENT (sequential, single in-context session), not the
 # background /crg-debug Workflow: the subagent honors --model haiku and applies fixes
 # synchronously, so capture sees a real git diff to grade. The background Workflow returns a
 # detection report and lands no diff headless, and runs its own internal models.
 corpus:
-  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: &invoke "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working, ignore: [README.md, 'assets/**'] }
-  - { name: ph2-raccoon-saloon-debugging-challenge, path: repos/ph2-raccoon-saloon-debugging-challenge, invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: main,   answer_branch: solution }
-  - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution, ignore: ['dist/**', readme.md, src/components/key.md] }
-  - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
-  - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed }
+  - { name: debugging-challenge,                    path: repos/debugging-challenge,                    invoke: &invoke "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: working, ignore: [README.md, 'assets/**', '**/.code-review-graph/**', .mcp.json, .opencode.json, .cursorrules, .windsurfrules, AGENTS.md, CLAUDE.md, GEMINI.md, QODER.md, '.claude/**', '.cursor/**', '.gemini/**', '.kiro/**', '.qoder/**'] }
+  - { name: ph2-raccoon-saloon-debugging-challenge, path: repos/ph2-raccoon-saloon-debugging-challenge, invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: main,   answer_branch: solution, ignore: &scratch ['**/.code-review-graph/**', .mcp.json, .opencode.json, .cursorrules, .windsurfrules, AGENTS.md, CLAUDE.md, GEMINI.md, QODER.md, '.claude/**', '.cursor/**', '.gemini/**', '.kiro/**', '.qoder/**'] }
+  - { name: react-debug-practice,                   path: repos/react-debug-practice,                   invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: master, answer_branch: solution, ignore: ['dist/**', readme.md, src/components/key.md, '**/.code-review-graph/**', .mcp.json, .opencode.json, .cursorrules, .windsurfrules, AGENTS.md, CLAUDE.md, GEMINI.md, QODER.md, '.claude/**', '.cursor/**', '.gemini/**', '.kiro/**', '.qoder/**'] }
+  - { name: pdb-multi-shortest-substring,           path: repos/pdb-multi-shortest-substring,           invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed, ignore: *scratch }
+  - { name: repodebug-gvl-tracing,                  path: repos/repodebug-gvl-tracing,                  invoke: "Use the crg-debugger subagent (Task tool, subagent_type 'crg-debug:crg-debugger') to find and fix every functional bug in this repository. Apply all fixes directly to the source files. Do not ask for confirmation.", default_branch: buggy,  answer_branch: fixed, ignore: *scratch }
   # The three upstream answers change more than the fix inside the one file they touch
   # (reworded docstrings, cosmetic rewrites), which `ignore` cannot leave out. Each task lists
   # its `items`, so recall is counted over what the fix does and nothing else.
@@ -59,6 +62,7 @@ corpus:
     invoke: *invoke
     default_branch: buggy
     answer_branch: fixed
+    ignore: *scratch
     items:
       - "merge_collapse also merges when the invariant fails one run deeper in the stack (p[n-2].len <= p[n-1].len + p[n].len), so the invariant holds over the top four runs and not only the top three"
   - name: cpython-asyncio-cond
@@ -66,6 +70,7 @@ corpus:
     invoke: *invoke
     default_branch: buggy
     answer_branch: fixed
+    ignore: *scratch
     items:
       - "Condition.wait: a waiter that was already notified and is then cancelled before it resumes passes the wakeup on to another waiter"
       - "Condition.wait: the wakeup is also passed on when the cancellation, or any other exception, arrives while the waiter is re-acquiring the lock after a successful notify"
@@ -74,6 +79,7 @@ corpus:
     invoke: *invoke
     default_branch: buggy
     answer_branch: fixed
+    ignore: *scratch
     items:
       - "set_cmnd: a backslash that is the last character of an argument is not treated as an escape, so the copy never steps past the string's terminator"
       - "set_cmnd: backslashes are unescaped only when a command is really being run through a shell (MODE_SHELL or MODE_LOGIN_SHELL together with MODE_RUN), so arguments the front end never escaped are left alone"

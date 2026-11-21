@@ -1,4 +1,4 @@
-"""The self-improving loop: synth an improved subject, keep it only if the objective holds.
+"""The self-improving loop: synth an improved subject, keep it only if the objective improves.
 
 The keep/revert gate is deterministic and harness-owned. The model proposes; the shell's
 comparison decides. A claim the model cannot make is a claim it cannot fake.
@@ -31,12 +31,13 @@ def _collect_grades(cfg, run_dir, model, leg):
     return "\n".join(blocks)
 
 
-def _did_not_regress(objective, base_score, new_score):
-    """The gate. A candidate is kept when the objective is no worse, read in the direction that
-    objective runs: a higher token price is a regression, a higher pass rate is not."""
+def _improved(objective, base_score, new_score):
+    """The gate. A candidate is kept only when the objective is strictly better, read in the
+    direction that objective runs: a lower token price is better, a lower pass rate is not. A
+    tie is reverted, or a rewrite that changed nothing would be reported as an improvement."""
     if objective in LOWER_IS_BETTER:
-        return new_score <= base_score
-    return new_score >= base_score
+        return new_score < base_score
+    return new_score > base_score
 
 
 def _synth(cfg, run_dir, model, leg):
@@ -68,7 +69,7 @@ def _try_candidate(cfg, run_dir, model, candidate, base_score):
         log("re-running with the candidate subject")
         improved = engine.bench(cfg, run_dir / "improved", [model])[model]
         imp_score = engine.objective_of(improved, cfg.objective)
-        kept = _did_not_regress(cfg.objective, base_score, imp_score)
+        kept = _improved(cfg.objective, base_score, imp_score)
     finally:
         if not kept:
             shutil.copy(backup, cfg.subject)

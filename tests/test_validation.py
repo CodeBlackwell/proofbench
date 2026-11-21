@@ -102,7 +102,7 @@ def test_optimize_without_an_objective_stops_before_the_baseline(tmp_path, monke
 # ---- the question file
 
 @pytest.mark.parametrize("change", [
-    {"answerable": None}, {"text": None}, {"answer": "a1"}, {"id": 7}, {"tier": None}, {"hops": None},
+    {"answerable": None}, {"text": None}, {"answer": "a1"}, {"id": 7},
 ])
 def test_a_question_missing_a_field_the_grade_reads_is_refused_at_load(tmp_path, change):
     path = tmp_path / "questions.jsonl"
@@ -119,11 +119,12 @@ def test_a_line_that_is_not_json_is_refused_with_its_line_number(tmp_path):
         question.load(path)
 
 
-def test_a_question_off_the_grid_is_refused_before_any_arm_is_asked(tmp_path, monkeypatch):
-    cfg = load(tmp_path, questions=[{**QUESTION, "hops": 4}])
-    monkeypatch.setattr(runner, "ask", lambda *args, **kwargs: pytest.fail("an arm was asked"))
-    with pytest.raises(HarnessError, match="stratification"):
-        question.bench(cfg, tmp_path / "run", cfg.models)
+def test_a_field_the_grade_does_not_read_is_left_alone(tmp_path):
+    """A corpus may keep its own notes on a question. Files written for the old tier by hops
+    grid still carry both fields, and they load as they are."""
+    path = tmp_path / "questions.jsonl"
+    path.write_text(json.dumps({**QUESTION, "tier": 9, "hops": 4, "note": "mine"}) + "\n")
+    assert question.load(path)[0]["note"] == "mine"
 
 
 # ---- the arm's reply

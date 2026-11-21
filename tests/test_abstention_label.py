@@ -1,9 +1,8 @@
-"""What a leg may call its own numbers, and what a grid may leave out of itself.
+"""What a leg may call its own numbers.
 
 The suite went green over a corpus that is unanswerable by construction: the study's eight
 verified absences, every line of them `"answerable": false`. The leg printed `accuracy 1.0` and
-`tokens_per_correct 205`, the grid printed 1.0 in each of the two cells it drew out of fifteen,
-and the word abstention reached no part of the run path. The question set's own README says a
+`tokens_per_correct 205`, and the word abstention reached no part of the run path. The question set's own README says a
 number off that file is an abstention rate and that reporting it as accuracy is a category
 error, but the README is not what prints.
 
@@ -19,18 +18,17 @@ TOKENS_PER_QUESTION = 205          # 190 in, 15 out, the shape an arm reports
 SERIAL = itertools.count(1)
 
 
-def record(correct, answerable=True, abstained=False, tier=1, hops=1):
+def record(correct, answerable=True, abstained=False):
     return {"id": f"UQ-{next(SERIAL):04d}", "correct": correct, "graded_by": "abstention",
             "abstained": abstained, "answerable": answerable,
             "tokens_in": 190, "tokens_out": 15,
-            "question": {"tier": tier, "hops": hops, "type": "unanswerable"}}
+            "question": {"type": "unanswerable"}}
 
 
 def absences():
-    """questions/lineage.jsonl in shape: eight unanswerables over two of the fifteen cells,
-    five at tier 1 and three at tier 3, every one correctly abstained on."""
-    return [record(1, answerable=False, abstained=True, tier=tier)
-            for tier in (1, 1, 1, 1, 1, 3, 3, 3)]
+    """questions/lineage.jsonl in shape: eight unanswerables, every one correctly abstained
+    on."""
+    return [record(1, answerable=False, abstained=True) for _ in range(8)]
 
 
 class AbstentionOnlyLeg(unittest.TestCase):
@@ -74,34 +72,6 @@ class NotAbstainingIsNotBeingCorrect(unittest.TestCase):
         self.assertEqual(leg["non_abstention_rate_answerable"], 1.0)
         self.assertEqual(leg["accuracy"], 0.0)
         self.assertNotIn("abstention_correct_answerable", leg)
-
-
-class GridGaps(unittest.TestCase):
-    """The axes are the stratification the PRD fixes, so the table cannot hide its own holes."""
-
-    def printed(self, records, metric):
-        return scoreboard.grid(records, "tier", "hops", metric).splitlines()
-
-    def test_two_cells_of_fifteen_still_print_fifteen(self):
-        lines = self.printed(absences(), "abstention_rate")
-        self.assertEqual(lines[0], "abstention_rate by tier x hops")
-        self.assertEqual(lines[3].split("|")[1].split(), ["1.0", ".", ".", ".", "."])
-        self.assertEqual(lines[4].split("|")[1].split(), [".", ".", ".", ".", "."])
-        self.assertEqual(lines[5].split("|")[1].split(), ["1.0", ".", ".", ".", "."])
-
-    def test_a_cell_holding_questions_but_no_such_number_is_not_an_empty_cell(self):
-        self.assertEqual(self.printed(absences(), "accuracy")[3].split("|")[1].split(),
-                         ["-", ".", ".", ".", "."])
-
-    def test_an_axis_the_stratification_does_not_fix_is_a_hard_stop(self):
-        with self.assertRaises(HarnessError) as raised:
-            scoreboard.grid(absences(), "tier", "type", "abstention_rate")
-        self.assertIn("not a stratification axis", str(raised.exception))
-
-    def test_a_question_off_the_axes_is_a_hard_stop(self):
-        with self.assertRaises(HarnessError) as raised:
-            scoreboard.grid([record(1, tier=4)], "tier", "hops", "accuracy")
-        self.assertIn("outside the stratification", str(raised.exception))
 
 
 if __name__ == "__main__":

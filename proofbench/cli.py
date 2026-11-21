@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import __version__, config, engine, optimize, scoreboard
+from . import __version__, config, engine, optimize
 from .util import HarnessError, die, log
 
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
@@ -24,21 +24,10 @@ def _config_path(args):
 
 
 def _report_questions(model, leg):
-    """The headline numbers, then the grid the study reads them in: tier by hop depth. The grid
-    prints whichever rate the leg could honestly produce, so a corpus that measured only
-    abstention prints a grid of abstention rates under that heading and no other.
-
-    The pass^k and pass@k curve follows the headline. A leg asked each question more than once
-    prints a second grid, of pass^k at the full trial count: where the arm was right every time,
-    which the first grid, an average over trials, cannot show."""
+    """The headline numbers, then the pass^k and pass@k curve: a leg that is right on average
+    and a leg that is right every time are different legs."""
     log(f"[{model}] {({key: leg[key] for key in HEADLINE if key in leg})}")
-    pass_rates = [key for key in leg if "pass^" in key or "pass@" in key]
-    log(f"[{model}] {({key: leg[key] for key in pass_rates})}")
-    metric = "accuracy" if "accuracy" in leg else "abstention_rate"
-    print(scoreboard.grid(leg["records"], "tier", "hops", metric), file=sys.stderr)
-    if leg["trials"] > 1:
-        every_time = next(key for key in pass_rates if key.endswith(f"pass^{leg['trials']}"))
-        print(scoreboard.grid(leg["records"], "tier", "hops", every_time), file=sys.stderr)
+    log(f"[{model}] {({key: leg[key] for key in leg if 'pass^' in key or 'pass@' in key})}")
 
 
 def run_dir(run_id):

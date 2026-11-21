@@ -56,11 +56,10 @@ The runner does a repo task. It is started once per task per model.
 
 - A `git diff` of the directory against the starting commit, including new files.
 - Left out of the diff, because they are never the fix:
-  - `node_modules`, `.venv`, `__pycache__` and `.code-review-graph`, at any depth.
-  - Assistant scaffolding at the repo root: `.mcp.json`, `.opencode.json`, `.cursorrules`,
-    `.windsurfrules`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QODER.md`, and the folders
-    `.claude`, `.cursor`, `.gemini`, `.kiro`, `.qoder`.
+  - `node_modules`, `.venv` and `__pycache__`, at any depth.
 - Also left out: any path the task lists under [`ignore`](configuration.md#a-repo-task).
+- Nothing else is left out. If a tool your agent runs leaves its own files in the repo, such
+  as an `AGENTS.md` or a cache folder, list them under `ignore` or they are graded as changes.
 - New files are found under the ignore rules the repo had **before** the agent ran. A
   `.gitignore` the agent writes, edits or deletes changes nothing about what is captured, and
   its change to that file is itself in the diff.

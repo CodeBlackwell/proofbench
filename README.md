@@ -6,7 +6,7 @@ letting it grade itself.
 - You give it tasks you already know the answers to.
 - It runs an agent over them and grades the result against the known answer.
 - With `optimize`, it rewrites the skill from its misses and keeps the rewrite only if the
-  score holds.
+  score improves.
 
 It began as the harness behind [crg-debug](examples/crg-debug/README.md), a debugging skill.
 It works for any skill whose output can be compared to a known answer.
@@ -127,7 +127,7 @@ One corpus holds one kind.
 | Command | What it does |
 |---|---|
 | `proofbench run --config FILE` | Run every model over the corpus and write a scoreboard |
-| `proofbench optimize --config FILE` | Rewrite the `subject` from its misses; keep the rewrite only if the score holds |
+| `proofbench optimize --config FILE` | Rewrite the `subject` from its misses; keep the rewrite only if the score improves |
 | `proofbench run --demo` | Run the repo demo (needs a clone of this repository) |
 | `proofbench --version` | Print the version |
 

@@ -13,9 +13,10 @@ from . import judge, runner, scoreboard
 from .util import die, log
 
 
-# The fields the grade and the grid read, and the type each has to be. A question without one
-# would stop the leg only after its arm had been paid for.
-REQUIRED = {"id": str, "text": str, "answer": list, "answerable": bool, "tier": int, "hops": int}
+# The fields the grade reads, and the type each has to be. A question without one would stop
+# the leg only after its arm had been paid for. Any other field on a line is the corpus's own
+# and is not read.
+REQUIRED = {"id": str, "text": str, "answer": list, "answerable": bool}
 
 
 def _read_line(path, number, line):
@@ -130,21 +131,10 @@ def _refuse_shared_ids(questions):
         die(f"question ids are not unique: {shared}")
 
 
-def _refuse_off_the_grid(questions):
-    """The grid is printed after the run, so a question it has no cell for is refused here,
-    before the run is spent."""
-    axes = scoreboard.STRATIFICATION
-    outside = sorted(question["id"] for question in questions
-                     if any(question[field] not in axes[field] for field in axes))
-    if outside:
-        die(f"questions sit outside the stratification {axes}: {outside}")
-
-
 def read(cfg):
     """Every question of the corpus, checked whole. No arm is asked here."""
     questions = [question for task in cfg.corpus for question in load(task.path)]
     _refuse_shared_ids(questions)
-    _refuse_off_the_grid(questions)
     return questions
 
 

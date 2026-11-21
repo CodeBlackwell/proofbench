@@ -1,7 +1,7 @@
-"""Question scoreboard: the numbers the study reads, and the grid it reads them in.
+"""Question scoreboard: the numbers a leg of questions is read by.
 
-Every metric is computed from the per question records, so any question field can be a
-grouping key and a saved scoreboard can be regrouped later without re-running an arm.
+Every metric is computed from the per question records, which the scoreboard keeps, so a
+saved scoreboard can be read again later without re-running an arm.
 
 The provenance of a leg sits above its numbers, because a number is worth nothing until the
 reader knows whether a model or a canned reply produced it. The registry scans this file for
@@ -18,13 +18,6 @@ right on average and a leg that is right every time are different legs."""
 from math import comb
 
 from .util import die
-
-# The stratification the PRD fixes: three tiers crossed with five hop depths, fifteen cells.
-# The grid takes its axes from here and never from the keys the records happen to carry, so a
-# cell holding no question prints empty rather than vanishing out of a complete looking table.
-STRATIFICATION = {"tier": (1, 2, 3), "hops": (1, 2, 3, 5, 7)}
-NO_QUESTION, NO_NUMBER = ".", "-"
-LEGEND = f"{NO_QUESTION} no question in this cell, {NO_NUMBER} no such number on this cell"
 
 
 def _rate(hits, total):
@@ -175,51 +168,3 @@ def describe_provenance(records):
     reasons = _why_not_measured(stubbed, cost)
     return {"stubbed": stubbed, "model": _find_answering_model(records), "cost_usd": cost,
             "is_measured": not reasons, "not_measured_why": reasons}
-
-
-def group(records, fields):
-    """Group records by a tuple of question fields, for example ("tier", "hops"). A field no
-    question carries raises, because a grid with a silently empty axis measures nothing."""
-    cells = {}
-    for record in records:
-        key = tuple(record["question"][field] for field in fields)
-        cells.setdefault(key, []).append(record)
-    return {key: metrics(rows) for key, rows in cells.items()}
-
-
-def _axis(field):
-    """Axes come from the stratification, never from the data: a grid drawn over the keys that
-    happen to be present shows two cells of fifteen and still reads as a whole table."""
-    return STRATIFICATION.get(field) or die(
-        f"'{field}' is not a stratification axis (have {sorted(STRATIFICATION)})")
-
-
-def _cell(cell, metric):
-    """An empty cell and a cell that cannot carry this number are different facts, and a grid
-    printing both the same way hides one of them."""
-    if not cell:
-        return NO_QUESTION
-    value = cell.get(metric)
-    return NO_NUMBER if value is None else f"{value}"
-
-
-def _refuse_questions_off_the_axes(cells, rows, columns):
-    outside = sorted(key for key in cells if key[0] not in rows or key[1] not in columns)
-    if outside:
-        die(f"questions sit outside the stratification, so no grid holds them: {outside}")
-
-
-def grid(records, row_field, column_field, metric):
-    """One metric over every cell the stratification names, as text. The metric is named above
-    the table, because a number in a cell does not say what it is and the reader carries the
-    heading away with it."""
-    cells = group(records, (row_field, column_field))
-    rows, columns = _axis(row_field), _axis(column_field)
-    _refuse_questions_off_the_axes(cells, rows, columns)
-    header = f"{row_field:>10} | " + " ".join(f"{column_field}={column}".ljust(9)
-                                              for column in columns)
-    lines = [f"{metric} by {row_field} x {column_field}", header, "-" * len(header)]
-    for row in rows:
-        values = (_cell(cells.get((row, column)), metric) for column in columns)
-        lines.append(f"{row:>10} | " + " ".join(value.ljust(9) for value in values))
-    return "\n".join(lines + [LEGEND])

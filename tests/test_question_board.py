@@ -1,8 +1,4 @@
-"""The question scoreboard: the metrics, the grouping, and the grid the study reads.
-
-The grid is the point of the grouping: fifteen cells, tier crossed with hop depth, every one
-of them computed from the per question records, so a saved scoreboard regroups by any
-question field without re-running an arm."""
+"""The question scoreboard: the metrics, and the config that asks for them."""
 import itertools
 import tempfile
 import unittest
@@ -15,23 +11,15 @@ FIXTURE = Path(__file__).resolve().parent.parent / "examples" / "question-demo"
 CONFIG = FIXTURE / "proofbench.question.yaml"
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
 
-TIERS = (1, 2, 3)
-DEPTHS = (1, 2, 3, 5, 7)
 # Records sharing an id are trials of one question, so every record here takes its own.
 SERIAL = itertools.count(1)
 
 
-def record(correct, answerable=True, abstained=False, tier=1, hops=1, kind="lookup"):
+def record(correct, answerable=True, abstained=False):
     return {"id": f"LQ-{next(SERIAL):04d}", "correct": correct, "graded_by": "exact",
             "abstained": abstained, "answerable": answerable,
             "tokens_in": 100, "tokens_out": 10,
-            "question": {"tier": tier, "hops": hops, "type": kind}}
-
-
-def full_grid_records():
-    """One answered question per cell: correct wherever hop depth is at most the tier."""
-    return [record(int(hops <= tier), tier=tier, hops=hops)
-            for tier in TIERS for hops in DEPTHS]
+            "question": {"type": "lookup"}}
 
 
 class Metrics(unittest.TestCase):
@@ -67,33 +55,6 @@ class Metrics(unittest.TestCase):
         leg = scoreboard.metrics([record(0)])
         with self.assertRaises(HarnessError):
             engine.objective_of(leg, "tokens_per_correct")
-
-
-class Grouping(unittest.TestCase):
-
-    def test_group_by_any_question_field(self):
-        records = [record(1, kind="lookup"), record(0, kind="aggregation")]
-        cells = scoreboard.group(records, ("type",))
-        self.assertEqual(cells[("lookup",)]["accuracy"], 1.0)
-        self.assertEqual(cells[("aggregation",)]["accuracy"], 0.0)
-
-    def test_group_by_a_field_no_question_carries_is_a_hard_stop(self):
-        with self.assertRaises(KeyError):
-            scoreboard.group([record(1)], ("subject",))
-
-    def test_the_grid_has_fifteen_cells(self):
-        cells = scoreboard.group(full_grid_records(), ("tier", "hops"))
-        self.assertEqual(len(cells), 15)
-        self.assertEqual(cells[(3, 3)]["accuracy"], 1.0)
-        self.assertEqual(cells[(1, 7)]["accuracy"], 0.0)
-
-    def test_the_grid_prints_three_rows_of_five_depths_under_a_named_metric(self):
-        printed = scoreboard.grid(full_grid_records(), "tier", "hops", "accuracy").splitlines()
-        self.assertEqual(len(printed), 7)          # title, header, rule, three tiers, legend
-        self.assertEqual(printed[0], "accuracy by tier x hops")
-        for depth in DEPTHS:
-            self.assertIn(f"hops={depth}", printed[1])
-        self.assertEqual(printed[3].split("|")[1].split(), ["1.0", "0.0", "0.0", "0.0", "0.0"])
 
 
 class QuestionConfig(unittest.TestCase):

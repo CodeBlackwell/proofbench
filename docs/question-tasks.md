@@ -13,7 +13,6 @@ is no repository and no diff. Use it for retrieval, lookup and classification sk
 - [How a question is graded](#how-a-question-is-graded)
 - [The numbers](#the-numbers)
 - [Repeated trials](#repeated-trials)
-- [The grid](#the-grid)
 - [Measured or canned](#measured-or-canned)
 - [Hard stops](#hard-stops)
 
@@ -57,15 +56,13 @@ One JSON object per line.
 | `text` | text | yes | The question. This and `id` are all the arm sees |
 | `answer` | list | yes | The ids of the correct answer. Empty when there is none |
 | `answerable` | true or false | yes | False when the correct response is to decline |
-| `tier` | 1, 2 or 3 | yes | A row of [the grid](#the-grid) |
-| `hops` | 1, 2, 3, 5 or 7 | yes | A column of the grid |
 | `answer_names` | list | no | The answer in words. Shown to the judge |
 | anything else | | no | Kept in the records. Never shown to the arm |
 
 Example:
 
 ```json
-{"id": "LQ-0002", "text": "Who supervised Mikko Korhonen?", "answer": ["lutpub:Kalviainen, Heikki"], "answer_names": ["Heikki Kalviainen"], "answerable": true, "tier": 2, "hops": 1}
+{"id": "LQ-0002", "text": "Who supervised Mikko Korhonen?", "answer": ["lutpub:Kalviainen, Heikki"], "answer_names": ["Heikki Kalviainen"], "answerable": true}
 ```
 
 The file is checked before any arm is asked. A bad line is reported by its line number.
@@ -141,27 +138,6 @@ With trials:
 - `questions`, `answerable` and `unanswerable` count questions. Token and cost totals cover
   every trial.
 
-## The grid
-
-`run` prints one table per model: tier down the side, hop depth across the top.
-
-```
-accuracy by tier x hops
-      tier | hops=1    hops=2    hops=3    hops=5    hops=7
---------------------------------------------------------------
-         1 | .         1.0       .         .         .
-         2 | 0.0       .         .         .         .
-         3 | .         .         -         .         .
-. no question in this cell, - no such number on this cell
-```
-
-- The grid always has the same fifteen cells: tiers 1 to 3 by hops 1, 2, 3, 5 and 7.
-- `.` means no question sits in that cell.
-- `-` means the cell has questions but cannot carry this number. A cell holding only
-  unanswerable questions has no accuracy.
-- With `trials` above 1, a second grid shows `pass^k` at the full trial count.
-- A question whose `tier` or `hops` is off the grid is refused before the run starts.
-
 ## Measured or canned
 
 A leg's first lines say where its numbers came from.
@@ -179,7 +155,6 @@ Each of these stops the run:
 
 - A question line that is not JSON, or lacks a required field.
 - Two questions sharing an id.
-- A question off the grid.
 - An arm that exits non-zero, prints no JSON object, or leaves out a required field.
 - A judge verdict that is not 1 or 0.
 - One leg answered by more than one model.

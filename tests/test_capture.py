@@ -75,6 +75,15 @@ def test_a_new_file_is_captured_and_a_dependency_tree_is_not(repo, tmp_path):
     assert "dep.js" not in diff
 
 
+def test_a_file_an_agent_s_tools_leave_behind_is_graded_unless_the_task_ignores_it(repo, tmp_path):
+    """The engine names no one system's scratch files, so a corpus says which are its own."""
+    clone = capture.workspace(repo, "buggy", capture._pin(repo, "buggy"), tmp_path / "clone")
+    (clone / "AGENTS.md").write_text("left by a tool\n")
+    baseline = capture._pin(repo, "buggy")
+    assert "AGENTS.md" in capture.capture(clone, baseline)
+    assert "AGENTS.md" not in capture.capture(clone, baseline, ignore=["AGENTS.md"])
+
+
 def test_a_git_failure_while_capturing_is_a_hard_stop(tmp_path):
     with pytest.raises(HarnessError):
         capture.capture(tmp_path, "0" * 40)
