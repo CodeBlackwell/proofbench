@@ -1,7 +1,7 @@
 {
   "name": "proofbench",
   "description": "Build an eval for an agentic system and prove it can be trusted. The /proofbench skill interviews you, writes the eval into your system's repo, and takes it through four gates decided by the proofbench CLI: the adapter runs, every answer class is covered, the grader scores known-score controls as predicted, and the strongest model does not score everything.",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "author": { "name": "LeChristopher Blackwell" },
   "homepage": "https://github.com/CodeBlackwell/proofbench",
   "repository": "https://github.com/CodeBlackwell/proofbench",

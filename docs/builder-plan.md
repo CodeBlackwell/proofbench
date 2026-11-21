@@ -201,7 +201,7 @@ building it:
 
 ### Phase 2: the path (0.7.0)
 
-Built on 2026-11-21 and not released. tenex's eval passed all four gates again the same day,
+Built on 2026-11-21 and released as 0.7.0. tenex's eval passed all four gates again the same day,
 now with a path: 218 of 218 controls graded as predicted, 34 of them for the path. The phase
 cost about $7 at API prices, all of it on the subscription. tenex's second pass:
 
