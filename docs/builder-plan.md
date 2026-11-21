@@ -36,6 +36,11 @@ Each line is a decision the owner made. A change to one is a change to this file
   that is not green. Every gate is a subcommand of the Python CLI.
 - **Packaging:** this repo becomes a Claude Code plugin as well as the PyPI package.
 - **Deliverable:** a self-contained eval folder checked into the target system's repo.
+- **The docket,** decided 2026-11-21: a second skill, `/eval-docket`, modelled on vizardry's
+  `/data-docket`. It asks the owner in multiple choice which claims about the system can
+  honestly be tested, and on an eval that has tasks it puts each ambiguous task to them for a
+  ruling. It writes one file per system, `evals/docket.md`. `/proofbench` reads it as
+  guidance and offers it when there is none. It spends nothing and passes no gate.
 
 **What is graded**
 
@@ -83,9 +88,11 @@ Each line is a decision the owner made. A change to one is a change to this file
 
 ## The eval folder
 
-Proposed layout, inside the target repo:
+Layout inside the target repo. `evals/docket.md` sits beside the eval folders, one for the
+whole system:
 
 ```text
+evals/docket.md       what can honestly be tested, and what was ruled out
 evals/<name>/
   proofbench.yaml     the config
   adapter.sh          starts the system headless; this is the runner or arm

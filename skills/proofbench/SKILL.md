@@ -31,6 +31,15 @@ CLI decides whether the eval is sound. You never decide that yourself.
 3. If it exists, run `proofbench status --config proofbench.yaml` from inside it and resume at
    the first gate that is not `passed`. Skip to that gate's step below.
 4. If it does not exist, start at step 1.
+5. Look for `evals/docket.md`. It is written by `/eval-docket`, and records which claims the
+   owner wants tested, where the answers come from, and what was ruled out.
+   - **If it is there, read it first.** Take the classes, the answer source, the grader and
+     the rulings from it, and do not ask again what it already answers. Build nothing it
+     lists as not testable.
+   - **If it is not, offer to run `/eval-docket` first,** in one line, and carry on with
+     step 1 if the user declines.
+   - **The docket guides and passes no gate.** When a gate and the docket disagree about a
+     fact, the gate is right; tell the user, so the docket can be corrected.
 
 Run every `proofbench` command from inside the eval folder, so `runs/` lands there.
 
@@ -44,7 +53,7 @@ Read the target repo before asking anything. Find these yourself:
 - Where results with known right answers already exist: fixed bugs in git history, labelled
   fixtures, ground-truth files, resolved tickets, logs with a known verdict.
 
-Then ask the user only what the repo cannot tell you:
+Then ask the user only what neither the repo nor a docket can tell you:
 
 - What claim the eval should test. One sentence.
 - What a right result looks like, and what the kinds of right and wrong result are. These

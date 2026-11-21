@@ -8,7 +8,7 @@
     {
       "name": "proofbench",
       "source": "./",
-      "description": "The /proofbench skill: build an eval in your system's repo and take it through its gates."
+      "description": "The /proofbench skill builds an eval in your system's repo and takes it through its gates. The /eval-docket skill works out, before that, what the eval can honestly test."
     }
   ]
 }

@@ -92,6 +92,13 @@ In the repo of the system you want to evaluate, run `/proofbench`. It works in t
 - You can do all of it by hand. [docs/building-an-eval.md](docs/building-an-eval.md) covers
   each gate and command.
 
+Not sure what the eval should test? Run `/eval-docket` first. It asks you, in multiple
+choice, which claims about your system can honestly be tested, and writes the answers to
+`evals/docket.md`: where each claim's known answers come from, whether your system is shown
+enough to reach them, and what was ruled out. `/proofbench` reads that file and skips what it
+already answers. On an eval that has tasks, `/eval-docket` also finds the ones with more than
+one defensible answer and puts each to you for a ruling.
+
 ## Try the demos
 
 The demos are stubs with no gates, so they run with `--unchecked`.

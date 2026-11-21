@@ -9,6 +9,7 @@ eval passes, the controls one of them grades, and the commands that decide each 
 
 - [The idea](#the-idea)
 - [The commands](#the-commands)
+- [Before you build: the docket](#before-you-build-the-docket)
 - [The gates](#the-gates)
 - [Controls](#controls)
 - [The command grader](#the-command-grader)
@@ -35,6 +36,22 @@ eval passes, the controls one of them grades, and the commands that decide each 
 - `status` exits 0 only when every gate has passed.
 - `check` exits 0 when the gate passed and 1 when it failed.
 - Run them from the eval folder, so `runs/` lands beside the config.
+
+## Before you build: the docket
+
+`/eval-docket` is optional, costs nothing, and passes no gate. It writes `evals/docket.md`,
+one file for the whole system:
+
+- **The claims an eval can test,** each with where its known answers come from, what the
+  system is shown, the grader, and what would make its score a lie.
+- **Which claims share an eval,** and which need a folder of their own.
+- **What was ruled out, and why.** The commonest reason is that the answer cannot be reached
+  from what the system is shown, which otherwise costs a full run to discover.
+- **Rulings on ambiguous tasks:** each task with more than one defensible answer, what you
+  decided, and the control or rubric line that holds the grader to it.
+
+`/proofbench` reads the docket when there is one. When a gate and the docket disagree about a
+fact, the gate is right.
 
 ## The gates
 
