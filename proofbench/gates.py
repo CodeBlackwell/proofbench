@@ -6,6 +6,7 @@ rubric, adapter or controls changed since reads as stale, and a stale gate is no
 import hashlib
 import json
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import yaml
@@ -39,8 +40,8 @@ def _files(folder):
 
 def _keys(cfg, is_covered):
     """The config as it parses, so a reworded comment turns no gate stale."""
-    raw = yaml.safe_load(cfg.file.read_text())
-    kept = {key: value for key, value in raw.items() if is_covered(key)}
+    raw = yaml.safe_load(cfg.file.read_text()).items()
+    kept = {key: value for key, value in raw if is_covered(key)}
     return [json.dumps(kept, sort_keys=True).encode()]
 
 
@@ -50,15 +51,16 @@ def _path_files(cfg):
     if not cfg.path:
         return []
     scripts = [Path(value).read_bytes() for kind, value in cfg.path.rules if kind == "script"]
-    return [(cfg.path.judge_prompt or "").encode(), *scripts,
-            *_files(cfg.root / paths.RECORDED)]
+    return [(cfg.path.judge_prompt or "").encode(), *scripts, *_files(cfg.root / paths.RECORDED)]
 
 
 def _runner(cfg):
     return [Path(cfg.runner).read_bytes() if Path(cfg.runner).is_file() else cfg.runner.encode()]
 
 
-PARTS = {"config": lambda cfg: _keys(cfg, lambda key: key != "path"),
+# How often and how many at once a run asks changes no gate's verdict, so neither is covered.
+APART = ("path", "trials", "concurrency")
+PARTS = {"config": lambda cfg: _keys(cfg, lambda key: key not in APART),
          "path": lambda cfg: _keys(cfg, lambda key: key == "path"),
          "has_path": lambda cfg: [str(bool(cfg.path)).encode()],
          "path_files": _path_files, "runner": _runner, "tasks": _tasks,
@@ -115,8 +117,7 @@ def _adapter(cfg, run_dir):
         asked = question.read(cfg)[0]
         result = runner.ask(cfg.runner, model, asked, run_dir / "run.log", cfg.runner_args,
                             cfg.timeout_minutes, run_dir / steps.FILE if cfg.path else None)
-        return (True, result.get("cost_usd"),
-                f"{asked['id']} came back with a result" + _logged(cfg, run_dir))
+        return True, result.get("cost_usd"), f"{asked['id']} gave a result" + _logged(cfg, run_dir)
     task = cfg.corpus[0]
     baseline, _ = capture.ground_truth(task.path, task.default_branch, task.answer_branch, task.ignore)
     _, meta, agent_diff, _ = engine.attempt(cfg, task, model, baseline, run_dir)
@@ -170,14 +171,15 @@ def _spent(leg):
 
 
 def _headroom(cfg, run_dir):
-    """The strongest model on the whole eval. If it scores everything, the eval can show that a
-    change made things worse and never that one made them better."""
+    """The strongest model on the whole eval, each task once whatever `trials` says. An eval it
+    scores everything on cannot show a change for the better, and one it scores nothing on is
+    asking what nothing it is shown can answer. Neither can tell two systems apart."""
     strongest = cfg.models[0]
-    leg = engine.bench(cfg, run_dir, [strongest])[strongest]
+    leg = engine.bench(replace(cfg, trials=1), run_dir, [strongest])[strongest]
     named = cfg.objective if cfg.kind == "repo" else next(
         name for name in ("accuracy", "abstention_rate") if name in leg)
     score = engine.objective_of(leg, named)
-    return score < 1, _spent(leg), f"{strongest} scored {named}={score:.3f}"
+    return 0 < score < 1, _spent(leg), f"{strongest} scored {named}={score:.3f}"
 
 
 RUN = {"adapter": _adapter, "coverage": _coverage, "controls": _controls, "headroom": _headroom}

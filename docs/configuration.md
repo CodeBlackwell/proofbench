@@ -32,7 +32,7 @@ checked when the file is loaded.
 |---|---|---|---|
 | `corpus` | required | both | The tasks. See [Corpus entries](#corpus-entries) |
 | `models` | required | both | A list of model names to run, strongest first |
-| `judge` | required unless every task has a `check` | both | Path to the judge prompt, or `default` on a repo corpus |
+| `judge` | required on a repo corpus unless every task has a `check`; optional on a question corpus | both | Path to the judge prompt, or `default` on a repo corpus. A question corpus with none is graded by [exact id alone](question-tasks.md#how-a-question-is-graded) |
 | `runner` | `claude` | both | What does the task. See [Runners](io-contracts.md#the-repo-runner) |
 | `judge_model` | first of `models` | both | The model that grades |
 | `synth_model` | first of `models` | both | The model that rewrites the subject in `optimize` |

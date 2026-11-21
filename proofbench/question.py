@@ -52,12 +52,13 @@ def ids_match(question, result):
 
 
 def grade_one(cfg, question, result, judge_model):
-    """Abstention decides first, then an exact id match, and only then the judge."""
+    """Abstention decides first, then an exact id match, and only then the judge. An eval
+    with no judge stops at the match: its answers are ids, and a different id is wrong."""
     if result["abstained"] or not question["answerable"]:
         correct = int(bool(result["abstained"]) and not question["answerable"])
         return {"correct": correct, "graded_by": "abstention"}
-    if ids_match(question, result):
-        return {"correct": 1, "graded_by": "exact"}
+    if ids_match(question, result) or cfg.judge_prompt is None:
+        return {"correct": int(ids_match(question, result)), "graded_by": "exact"}
     verdict, cost_usd = judge.grade_answer(cfg.judge_prompt, question, result, judge_model,
                                            cfg.judge_input_limit_kb)
     return {"correct": int(verdict["correct"]), "graded_by": "judge",

@@ -33,14 +33,16 @@ def _say(question_record):
     return ", ".join(question_record.get("answer_names") or question_record["answer"])
 
 
-def _for_question(asked, other):
+def _for_question(asked, other, is_judged):
     """Canned replies to one question, each with the verdict it must get. `named` gives the
-    right answer in words and no ids, so it is the one the judge has to read to pass."""
+    right answer in words and no ids, so it is the one the judge has to read to pass. An eval
+    with no judge gets none: there, words without an id are not an answer."""
     made = {"nothing": (_canned(abstained=True), int(not asked["answerable"]))}
     if other:
         made["noise"] = (_canned(other["answer"], _say(other)), 0)
     if asked["answerable"]:
         made["answer"] = (_canned(asked["answer"]), 1)
+    if asked["answerable"] and is_judged:
         made["named"] = (_canned(text=_say(asked)), 1)
     half = asked["answer"][:len(asked["answer"]) // 2]
     if half:
@@ -80,7 +82,8 @@ def _mechanical(cfg):
         wrong = {one["id"]: next((other for other in asked if other["answerable"]
                                   and other["answer"] != one["answer"]), None) for one in asked}
         return {(one["id"], name): made for one in asked
-                for name, made in _for_question(one, wrong[one["id"]]).items()}
+                for name, made in _for_question(one, wrong[one["id"]],
+                                                bool(cfg.judge_prompt)).items()}
     answers = {task.name: capture.ground_truth(task.path, task.default_branch,
                                                task.answer_branch, task.ignore)[1]
                for task in cfg.corpus}

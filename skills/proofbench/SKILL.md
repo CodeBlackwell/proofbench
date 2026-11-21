@@ -63,7 +63,8 @@ Then ask the user only what the repo cannot tell you:
 |---|---|---|
 | A change to a repo, and a command can check it | repo | `check` command with `hidden` files |
 | A change to a repo, and nothing can be run | repo | LLM judge, `judge: default` |
-| An answer | question | Exact id match first, your `judge.md` for prose |
+| An answer in words | question | Exact id match first, your `judge.md` for prose |
+| An id from a fixed list, such as a label | question | Exact id match alone: leave `judge` out |
 
 Prefer the command grader wherever something can be run. Formats are in the plugin's docs:
 `docs/configuration.md`, `docs/io-contracts.md`, `docs/question-tasks.md` and
@@ -86,9 +87,13 @@ evals/<name>/
   .gitignore          holds one line: runs/
 ```
 
-- **The adapter** must be executable and take no secrets on its command line.
+- **The adapter** must be executable and take no secrets on its command line. When the repo
+  already has a script that starts the system headless, point `runner` at it and write no
+  adapter.
 - **A harvester** is a small script the user can re-run. Commit it, so the tasks can be
-  rebuilt and extended. It must not call a model to produce an answer.
+  rebuilt and extended. It must not call a model to produce an answer. When the repo already
+  mines its cases, the harvester copies them into `tasks/` and labels each with its class.
+- **Leave out tasks whose answers a model wrote,** unless the user approves each answer.
 - **Every task carries a class** from the config's `classes` list.
 - **Write answers as outcomes**, never as the exact text or edit expected.
 - **A question file never holds the answer in the question text.** A repo task's README never
@@ -113,9 +118,11 @@ proofbench check adapter --config proofbench.yaml
    - an answer that is right and worded nothing like the expected one
    Show each to the user with the score you predict. Only after they approve it, write the
    file and add its range to `controls/predictions.json`. Then run `check controls`.
-4. **`headroom`** (one full run on the strongest model). Fails when that model scores 1: the
-   eval is too easy to show an improvement. Add harder tasks from real history; do not
-   remove easy ones to move the number.
+4. **`headroom`** (one pass over every task on the strongest model, whatever `trials` says).
+   Fails when that model scores 1: the eval is too easy to show an improvement. Add harder
+   tasks from real history; do not remove easy ones to move the number. Fails when it scores
+   0 too: check that each answer can be reached from what the system is shown, and tell the
+   user when it cannot.
 
 When a gate fails, `gates.json` holds the reason under `detail`.
 

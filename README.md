@@ -82,7 +82,7 @@ In the repo of the system you want to evaluate, run `/proofbench`. It works in t
 | `adapter` | Your system starts on one task and a result comes back |
 | `coverage` | Every kind of answer you declared has a task |
 | `controls` | The grader scores results with a known right score as predicted |
-| `headroom` | The strongest model does not score everything |
+| `headroom` | The strongest model scores some of it, and not all |
 
 - Answers are mined from history you own, or asked of you. An answer a model invented is
   never accepted without your approval.
@@ -160,7 +160,7 @@ One corpus holds one kind.
 | The known answer | A branch holding the fix | An answer key in a JSONL file |
 | What runs | `claude`, or your executable, inside a throwaway clone | Your executable, called an arm |
 | What is graded | The diff the agent leaves | The answer the arm prints |
-| Who grades | A `check` command, or the judge model | An exact id match first, the judge only for prose |
+| Who grades | A `check` command, or the judge model | An exact id match first, then the judge for prose, if you give it one |
 | Main numbers | `macro_passed`, or `macro_recall` and `macro_precision` | `accuracy`, `pass^k`, `tokens_per_correct` |
 | Read more | [CORPUS.md](CORPUS.md) | [docs/question-tasks.md](docs/question-tasks.md) |
 

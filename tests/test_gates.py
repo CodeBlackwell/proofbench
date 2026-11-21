@@ -77,6 +77,17 @@ def test_the_mechanical_controls_are_written_with_their_predictions(demo):
     assert (named["answer"], named["answer_ids"]) == ("Per Pettersson", [])
 
 
+def test_an_eval_with_no_judge_grades_by_exact_id_and_asks_nobody(demo, tmp_path, monkeypatch):
+    """Words that name the answer are not an answer there, so no `named` control is built."""
+    demo.write_text(demo.read_text().replace("judge: judge.md\n", ""))
+    monkeypatch.setattr(judge, "grade_answer", lambda *args: pytest.fail("the judge was asked"))
+    cfg = config.load(demo)
+    assert controls.build(cfg) == 8
+    assert not (controls.folder(cfg) / "LQ-0001" / "named.json").exists()
+    assert check(demo, "controls", tmp_path)
+    assert recorded(demo, "controls")["cost_usd"] is None
+
+
 def test_building_again_keeps_a_control_written_by_hand(demo):
     cfg = config.load(demo)
     controls.build(cfg)
@@ -115,11 +126,15 @@ def test_an_adapter_that_cannot_answer_fails_its_gate_with_the_reason(demo, tmp_
     assert "arm exited 3" in recorded(demo, "adapter")["detail"]
 
 
-def test_headroom_fails_an_eval_the_strongest_model_scores_everything_on(demo, tmp_path, monkeypatch):
+def test_headroom_fails_an_eval_the_strongest_model_scores_all_or_none_of(demo, tmp_path, monkeypatch):
+    demo.write_text("trials: 3\n" + demo.read_text())
     assert check(demo, "headroom", tmp_path)
+    asked = json.loads((tmp_path / "runs" / "headroom" / "stub" / "scoreboard.json").read_text())
+    assert asked["trials"] == 1
     assert "accuracy=0.667" in recorded(demo, "headroom")["detail"]
-    monkeypatch.setattr(engine, "bench", lambda cfg, run_dir, models: {"stub": {"accuracy": 1.0}})
-    assert not gates.check(config.load(demo), "headroom", tmp_path / "runs" / "again")
+    for useless in (1.0, 0.0):
+        monkeypatch.setattr(engine, "bench", lambda *args: {"stub": {"accuracy": useless}})
+        assert not gates.check(config.load(demo), "headroom", tmp_path / "runs" / str(useless))
 
 
 def run_cli(monkeypatch, *argv):

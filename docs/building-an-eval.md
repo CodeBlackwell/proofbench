@@ -45,7 +45,7 @@ Work through them in this order.
 | `adapter` | The runner starts your system on the first task and a result comes back | One attempt on the last model in `models` |
 | `coverage` | Every class in `classes` has a task, and every task is in a declared class | Nothing |
 | `controls` | Every control is scored inside its predicted range | The grader, on each control |
-| `headroom` | The first model in `models` scores below 1 on the whole eval | One full leg |
+| `headroom` | The first model in `models` scores above 0 and below 1 on the whole eval | One pass over every task |
 
 **`adapter`**
 
@@ -65,7 +65,11 @@ Work through them in this order.
 
 - If the strongest model scores everything, the eval can show that a change made things
   worse and never that one made them better.
+- If it scores nothing, the eval is most likely asking for what nothing the system is shown
+  can answer. Check where the answers came from before blaming the system.
 - A question corpus is read on `accuracy`. A repo corpus is read on its `objective`.
+- Each question is asked once, whatever `trials` says. One pass shows whether the eval can
+  be passed and failed, and costs less than three.
 
 ## Controls
 
@@ -78,7 +82,7 @@ It writes into a `controls` folder beside the config. For each question:
 | Control | What it is | Must be graded |
 |---|---|---|
 | `answer` | The expected ids | Correct |
-| `named` | The answer in words, with no ids, so the judge has to read it | Correct |
+| `named` | The answer in words, with no ids, so the judge has to read it. Not built for an eval with no judge | Correct |
 | `nothing` | An abstention | Correct only if the question is unanswerable |
 | `noise` | The answer to a different question | Wrong |
 | `half` | Half the expected ids, when there are two or more | Wrong |
@@ -235,7 +239,8 @@ path:
 - When any covered file changes, the gate reads as **stale**, and a stale gate does not count
   as passed.
 - The config is covered as it parses. Rewording a comment or reordering its keys leaves
-  every gate as it was.
+  every gate as it was. So does changing `trials` or `concurrency`: how often and how many at
+  once a run asks changes no gate's verdict.
 - For a repo corpus, "the tasks" means the commits both branches point at.
 - The system you are evaluating is covered by no gate, so changing it never makes the eval
   stale.

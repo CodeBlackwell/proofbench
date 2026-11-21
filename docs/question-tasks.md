@@ -40,7 +40,7 @@ A minimal config:
 runner: arms/my-arm.sh      # any executable
 models: [sonnet]            # passed to the arm as --model
 judge_model: opus
-judge: judge.md             # your own rubric
+judge: judge.md             # your own rubric; leave it out to grade by exact id alone
 corpus:
   - kind: question
     file: questions/lineage.jsonl
@@ -77,6 +77,10 @@ Three rules, tried in order. The first that applies decides.
 2. **Exact match.** If the arm's `answer_ids` are the same set as the question's `answer`, the
    grade is correct. No model is involved.
 3. **The judge.** Otherwise the judge reads the arm's answer and returns 1 or 0.
+
+A config with no `judge` key stops after rule 2: ids that do not match are graded wrong and
+no model is asked. Use it when the system answers with an id from a fixed list, such as a
+label. Use a judge when a right answer can come in words.
 
 Details:
 

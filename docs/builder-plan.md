@@ -107,7 +107,7 @@ evals/<name>/
 | `adapter` | The adapter starts the system on one task and a result is captured | One agent run |
 | `coverage` | Every answer class the config declares has tasks | No |
 | `controls` | Each grader scores every control inside its predicted range | Judge calls only |
-| `headroom` | The strongest model scores below 100% on the full eval | One full run |
+| `headroom` | The strongest model scores above 0 and below 100%, each task asked once | One pass |
 
 - **Order:** the skill works through them top to bottom.
 - **Paid gates wait:** the skill states an estimated cost and waits for a yes.
@@ -256,6 +256,52 @@ These are the author's choices, still to review:
   passed its controls.
 
 ### Phase 3: the second target (1.0.0)
+
+Built on 2026-11-21 and not released. Triage Desk carries two evals the builder produced,
+`evals/owner/` and `evals/intermittent/`, on the unpushed branch `proofbench-eval`. The
+owner eval passes all four gates. The intermittent eval passes three and has not passed
+headroom. What the second system showed:
+
+- **The owner chose:** both evals at once, real failures only, no judge, no path, and a
+  headroom gate that asks each question once.
+- **Four changes to proofbench, none special to Triage Desk.** A question eval with no
+  `judge` is graded by exact id alone and gets no words-only control. The headroom gate
+  asks each task once, whatever `trials` says. `trials` and `concurrency` turn no gate
+  stale. The headroom gate fails at a score of 0 as it does at 1.
+- **What the gates caught in the hand-built eval.** Its 73 written questions have answers a
+  model wrote, and Opus scores 100% on them, so they fail headroom. Its intermittent set
+  held one class, which fails coverage; five `Steady` failures were mined to pass it. Its
+  judge was never needed, and its rubric contradicted the words-only control.
+- **What the gates did not catch, and now do.** On the intermittent eval Opus scored 0 of
+  21 and declined 20. The answers are what a later re-run did, and nothing the agent is
+  shown says what a later re-run will do. Headroom asked only for a score below 1, so the
+  eval passed. An eval nobody can pass is worth as little as one everybody passes, so the
+  gate now asks for a score above 0 too. The intermittent eval's records were reset and its
+  headroom reads as not run. It stays unfinished until its answers can be reached from what
+  the agent is shown, or the agent is asked to predict.
+- **Every change to what a gate covers turns recorded gates stale once.** This phase's
+  change did it to tenex, whose four gates cost $7.98 to earn again. The cover has changed
+  in both releases since 0.6.0 and should stop changing at 1.0.0.
+- **The path judge read real attempts for the first time, on tenex.** It called 31 of 42
+  paths sound. All 11 it refused failed the same point: the console listed findings with no
+  filter, was shown the first 50 of several hundred, and answered from those. The fixed
+  rules cannot see that, and it corrects the Phase 2 note above: some of the console's
+  misses do begin with not reading the right data.
+- **The grounding rule failed 3 of 42 answers, and all three were false alarms.** Two wrote
+  a number with a thousands separator, which the rule reads as two numbers. One converted
+  bytes to megabytes and worked out a percentage. The first is a bug in the rule. The second
+  is the rule as the owner stated it, and the owner's to keep or loosen.
+- **One trial is noisy.** Sonnet scored 31 of 42 on tenex in the morning and 27 of 42 in the
+  evening: four answers went from right to wrong and none the other way.
+- **The comparison.** The hand-built eval is 886 lines written by hand: seven configs, a
+  rubric, and four scripts. The builder's two evals are 86, two configs and two task
+  builders, and reuse the repo's two miners, one of them extended by 20 lines. On the same
+  25 owner questions Opus scored 0.467 over three trials by hand and 0.44 over one here.
+- **One trial is not a third of the cost of three.** The second and third trials of a
+  question read its log from the CLI's cache. Headroom cost $14.82 against the $5.70
+  estimated by dividing an old three-trial run by three.
+- **The hand-built `optimize` config has its held-out entry** and splits again. It runs
+  only with `--unchecked`: it has been through no gate.
 
 - Rebuild triage-desk's eval with the skill.
 - Compare the effort and the scores with its hand-built eval of about 900 lines.

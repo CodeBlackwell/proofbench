@@ -176,7 +176,7 @@ def test_a_graded_path_with_no_path_control_fails_the_controls_gate(pathed, tmp_
 def test_a_gate_goes_stale_only_on_what_it_depends_on(pathed, tmp_path):
     for gate in ("adapter", "coverage"):
         assert check(pathed, gate, tmp_path)
-    pathed.write_text("# a reworded comment\n" + pathed.read_text())
+    pathed.write_text("# a reworded comment\ntrials: 3\n" + pathed.read_text())
     assert set(gates.status(config.load(pathed)).values()) == {"passed", "not run"}
     pathed.write_text(pathed.read_text().replace("max_steps: 3", "max_steps: 4"))
     assert set(gates.status(config.load(pathed)).values()) == {"passed", "not run"}

@@ -124,8 +124,10 @@ def _read_trials(raw, kind):
 
 
 def _read_judge(raw, resolve, kind, tasks):
-    """A corpus graded by command alone is sent to no judge, so it needs no rubric."""
-    is_judged = kind == "question" or any(not task.check for task in tasks)
+    """A repo corpus graded by command alone is sent to no judge, so it needs no rubric. Nor
+    does a question corpus whose answers are ids from a fixed list: left without a `judge`,
+    it is graded by exact match alone, and an id that does not match is wrong."""
+    is_judged = kind == "repo" and any(not task.check for task in tasks)
     prompt = _read_prompt(raw, "judge", resolve, kind)
     return prompt if prompt or not is_judged else die("config has no judge prompt")
 
