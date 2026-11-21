@@ -116,23 +116,26 @@ def _grade_questions(cfg):
         return dict(pool.map(grade_one, sorted(folder(cfg).glob("*/*.json"))))
 
 
-def _check_both_ends(cfg, task, answer, work):
-    yield f"{task.name}/start", grader.run_check(task, work, cfg.timeout_minutes)
-    applied = spawn(["git", "-C", str(work), "apply", "-"], input=answer)
-    if applied.returncode != 0:
-        die(f"{task.name}: the answer does not apply to the starting state: {applied.stderr.strip()}")
-    yield f"{task.name}/answer", grader.run_check(task, work, cfg.timeout_minutes)
+def _check_both_ends(cfg, task, baseline, answer, scratch):
+    """Each end is checked in a clone of its own. A check leaves caches behind, and Python's
+    bytecode cache cannot tell two versions of a file apart when they are the same size and
+    were written in the same second: reused, the clone would grade the answer as the start."""
+    for end, patch in (("start", ""), ("answer", answer)):
+        work = capture.workspace(task.path, task.default_branch, baseline, scratch / end)
+        if patch and spawn(["git", "-C", str(work), "apply", "-"], input=patch).returncode != 0:
+            die(f"{task.name}: the answer does not apply to the starting state")
+        yield f"{task.name}/{end}", grader.run_check(task, work, cfg.timeout_minutes)
 
 
 def _grade_task(cfg, task):
     baseline, answer = capture.ground_truth(task.path, task.default_branch, task.answer_branch,
                                             task.ignore)
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
-        work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
         if task.check:
-            yield from _check_both_ends(cfg, task, answer, work)
+            yield from _check_both_ends(cfg, task, baseline, answer, Path(scratch))
             return
-        readme = engine.read_readme(work)
+        readme = engine.read_readme(capture.workspace(task.path, task.default_branch, baseline,
+                                                      Path(scratch) / task.name))
     for path in sorted((folder(cfg) / task.name).glob("*.patch")):
         grade, cost_usd = judge.grade(cfg.judge_prompt, readme, answer, path.read_text(),
                                       cfg.judge_model, task.items,

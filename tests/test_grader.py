@@ -25,10 +25,11 @@ def entry(repo, more=""):
             f"answer_branch: fixed{more}}}")
 
 
-def test_a_check_passes_on_the_fix_and_fails_on_the_starting_state(repo):
-    assert grader.run_check(checked_task(repo), repo)["passed"] == 0
-    git(repo, "checkout", "-q", "fixed")
-    assert grader.run_check(checked_task(repo), repo)["passed"] == 1
+def test_a_check_passes_on_the_fix_and_fails_on_the_starting_state(repo, tmp_path):
+    """Two clones, because the first check leaves a bytecode cache the second would read."""
+    for branch, passed in (("buggy", 0), ("fixed", 1)):
+        git(repo, "clone", "-q", "--branch", branch, str(repo), str(tmp_path / branch))
+        assert grader.run_check(checked_task(repo), tmp_path / branch)["passed"] == passed
 
 
 def test_hidden_files_come_from_the_answer_branch_over_what_the_agent_left(repo, tmp_path):

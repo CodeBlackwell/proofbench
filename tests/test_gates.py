@@ -162,11 +162,13 @@ def test_a_judged_repo_task_gets_diff_controls_the_judge_must_score_as_predicted
 
 
 def test_a_command_graded_task_must_fail_at_the_start_and_pass_on_the_answer(repo, tmp_path):
-    path = write_config(repo, entry(repo, f', check: "{CHECK}"'))
+    """The check here refuses to run twice in one clone, as a stale cache would make it."""
+    once = f"test ! -e seen && touch seen && {CHECK}"
+    path = write_config(repo, entry(repo, f', check: "{once}"'))
     cfg = config.load(path)
     assert controls.build(cfg) == 2
     assert gates.check(cfg, "controls", tmp_path / "gate")
-    path.write_text(path.read_text().replace(CHECK, "true"))
+    path.write_text(path.read_text().replace(once, "true"))
     assert not gates.check(config.load(path), "controls", tmp_path / "again")
     assert "fix/start" in recorded(path, "controls")["detail"]
 
