@@ -58,6 +58,15 @@ def _arm(runner_name, resolve):
     return str(arm) if os.access(arm, os.X_OK) else die(f"runner is not executable: {arm}")
 
 
+def _repo_runner(runner_name, resolve):
+    """A file beside the config is the eval's own adapter, and is started by its full path
+    because the runner's working directory is the clone. Anything else is a command."""
+    found = resolve(runner_name)
+    if runner_name in runner.BUILTINS or not found.is_file():
+        return runner_name
+    return str(found) if os.access(found, os.X_OK) else die(f"runner is not executable: {found}")
+
+
 def _read_runner_args(raw, kind):
     """The flags an arm needs beside --model: which frozen snapshot to read, and whatever
     configuration the arm is measured under. They live in the config so a run records the
@@ -141,7 +150,7 @@ def _build_config(raw, path, resolve, kind, tasks):
     graded_by_command = kind == "repo" and all(task.check for task in tasks)
     return Config(
         root=path.parent, file=path,
-        runner=_arm(runner_name, resolve) if kind == "question" else runner_name,
+        runner=(_arm if kind == "question" else _repo_runner)(runner_name, resolve),
         models=models,
         judge_model=raw.get("judge_model", models[0]),
         synth_model=raw.get("synth_model", models[0]),

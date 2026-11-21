@@ -316,6 +316,23 @@ headroom. What the second system showed:
 - **Done when:** two systems carry an eval the builder produced, and neither needed a change
   to proofbench that was special to it.
 
+### The builder on itself
+
+Tried on 2026-11-21: a fresh Opus session ran `/proofbench` on this repo with no docket, the
+owner answering its questions through a relay. It stopped before writing the eval, waiting on
+the owner. What the trial showed:
+
+- **It kept its rules.** It read before asking, started no paid gate, stated costs, and asked
+  for approval of each task whose expected outcome it had written.
+- **It chose to test the builder skill itself,** on three tasks cut from tenex and Triage
+  Desk, graded by command, with the skill's three hard rules as path rules.
+- **It found two gaps, both fixed the same day.** The controls gate graded no hand-written
+  control on a task graded by command, and the cost of an executable repo runner was never
+  read.
+- **Still open:** its three tasks would bring a private repo's material into this public
+  one, three tasks make a coarse headroom score, and it did not consider scoring the gates
+  themselves as a classifier, which costs almost nothing.
+
 ## Left out of v1
 
 - Conversations with a simulated user.

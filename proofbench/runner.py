@@ -39,8 +39,9 @@ BUILTINS = {"claude": _claude}
 def _claude_meta(stdout):
     """Pull cost, turns and token usage from claude's result object: the one line the plain
     format prints, and one event among many in a stream.
-    Observability for the repo task, so this never dies: a custom runner or malformed
-    envelope yields None and the wall-clock seconds still stand. The question task does not
+    Observability for the repo task, so this never dies: output holding no such object
+    yields None and the wall-clock seconds still stand. An executable runner that starts
+    claude and prints what it printed has its cost read the same way as the built-in one. The question task does not
     read this; it takes its token counts from the arm's own result object, which it requires."""
     envelope = next((event for event in steplog.events(stdout) if "total_cost_usd" in event), None)
     if envelope is None:
@@ -73,8 +74,7 @@ def run(runner, invoke, model, max_turns, cwd, log_path, timeout_minutes=None, s
     Path(log_path).write_text(proc.stdout + proc.stderr)
     if steps and is_builtin:
         steplog.write(steps, steplog.from_claude(proc.stdout))
-    meta = _claude_meta(proc.stdout) if runner in BUILTINS else dict(_NO_META)
-    return {"seconds": round(time.time() - start, 1), **meta}
+    return {"seconds": round(time.time() - start, 1), **_claude_meta(proc.stdout)}
 
 
 def _is(value, kind):

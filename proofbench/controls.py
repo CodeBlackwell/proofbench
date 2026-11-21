@@ -63,8 +63,8 @@ def _half(diff):
 
 
 def _for_task(task, answer):
-    """A task graded by command needs no files: its starting state must fail and its answer
-    must pass. A judged task without `items` gets half the answer too; with `items`, half the
+    """A task graded by command needs no files built for it: its starting state must fail and
+    its answer must pass. A judged task without `items` gets half the answer too; with `items`, half the
     hunks may hold every listed item, so no score can be predicted for it."""
     if task.check:
         return {"start": (None, {"passed": NO}), "answer": (None, {"passed": YES})}
@@ -121,15 +121,19 @@ def _grade_questions(cfg):
         return dict(pool.map(grade_one, sorted(folder(cfg).glob("*/*.json"))))
 
 
-def _check_both_ends(cfg, task, baseline, answer, scratch):
-    """Each end is checked in a clone of its own. A check leaves caches behind, and Python's
-    bytecode cache cannot tell two versions of a file apart when they are the same size and
-    were written in the same second: reused, the clone would grade the answer as the start."""
-    for end, patch in (("start", ""), ("answer", answer)):
-        work = capture.workspace(task.path, task.default_branch, baseline, scratch / end)
+def _check_each(cfg, task, baseline, answer, scratch):
+    """The start, the answer and every control written by hand, each checked in a clone of its
+    own. A check leaves caches behind, and Python's bytecode cache cannot tell two versions of
+    a file apart when they are the same size and were written in the same second: reused, the
+    clone would grade one control as another. A control written by hand is a patch against
+    the starting state: a result that looks right and is wrong, or the other way round."""
+    written = sorted((folder(cfg) / task.name).glob("*.patch"))
+    by_hand = {path.stem: path.read_text() for path in written}
+    for name, patch in {**by_hand, "start": "", "answer": answer}.items():
+        work = capture.workspace(task.path, task.default_branch, baseline, scratch / name)
         if patch and spawn(["git", "-C", str(work), "apply", "-"], input=patch).returncode != 0:
-            die(f"{task.name}: the answer does not apply to the starting state")
-        yield f"{task.name}/{end}", grader.run_check(task, work, cfg.timeout_minutes)
+            die(f"{task.name}: the control {name} does not apply to the starting state")
+        yield f"{task.name}/{name}", grader.run_check(task, work, cfg.timeout_minutes)
 
 
 def _grade_task(cfg, task):
@@ -137,7 +141,7 @@ def _grade_task(cfg, task):
                                             task.ignore)
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
         if task.check:
-            yield from _check_both_ends(cfg, task, baseline, answer, Path(scratch))
+            yield from _check_each(cfg, task, baseline, answer, Path(scratch))
             return
         readme = engine.read_readme(capture.workspace(task.path, task.default_branch, baseline,
                                                       Path(scratch) / task.name))

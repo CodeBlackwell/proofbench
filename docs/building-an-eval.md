@@ -116,6 +116,10 @@ For each repo task the judge grades:
 - `half` is left out when the task lists `items`, or when the answer has one hunk.
 - A repo task graded by command gets no files. Its starting state must fail and its answer
   must pass.
+- To add a control by hand to a task graded by command, write a patch against the starting
+  state as `controls/TASK/NAME.patch`, and predict it in `predictions.json` as
+  `{"TASK/NAME": {"passed": [0, 0]}}`, or `[1, 1]`. The gate applies it to a fresh clone and
+  runs the check. Use one for a result that looks right and is wrong.
 
 **The predictions**
 

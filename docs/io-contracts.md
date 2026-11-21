@@ -40,7 +40,8 @@ The runner does a repo task. It is started once per task per model.
 
 - Built in: `claude -p <invoke> --model <model> --dangerously-skip-permissions
   --output-format json --max-turns <max_turns>`
-- Your own: `<runner> <invoke> <model>`. Give a command on your PATH or an absolute path.
+- Your own: `<runner> <invoke> <model>`. Give a file, relative to the config, or a command
+  on your PATH.
 
 **What it gets**
 
@@ -52,6 +53,10 @@ The runner does a repo task. It is started once per task per model.
 
 - Change the files in that directory. It may commit or not; both are captured.
 - Its exit code and its printed output are not trusted. Only the diff counts.
+- Its cost is read from its output when it prints the result object the `claude` CLI prints:
+  the one line of `--output-format json`, or the `result` event of a stream. A runner that
+  starts `claude` only has to print what `claude` printed. With no such object the cost is
+  recorded as unknown.
 
 **What is captured**
 
