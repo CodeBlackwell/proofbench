@@ -1,5 +1,5 @@
 # Demo config. Build the corpus first:  bash examples/sample-corpus/build.sh
-# Then:                                  proofbench run --demo
+# Then:                                  proofbench run --demo --unchecked
 #
 # Pure-eval mode: no `subject` / `synth`, so only `run` is available. To try the
 # self-improving loop, point `subject` at a skill file, uncomment `synth`, and mark one of the

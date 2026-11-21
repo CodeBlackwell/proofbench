@@ -2,26 +2,20 @@
 
 Whatever a run would trip over later is refused here, before an agent or a judge is paid for."""
 import os
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
-from . import runner
-from .corpus import QuestionSet, Task, read_corpus  # Task and QuestionSet are read as config.Task
+from . import objective, runner
+from .corpus import QuestionSet, Task, _strings, read_corpus  # noqa: F401 (read as config.Task)
 from .util import die
 
-# pass^3, pass@3, and the names an abstention only leg carries them under.
-PASS_OBJECTIVE = re.compile(r"(?:abstention_)?pass[@^](\d+)")
-# The other numbers on a question leg whose better direction the optimize gate knows.
-QUESTION_OBJECTIVES = {"accuracy", "abstention_rate", "abstention_correct_unanswerable",
-                       "tokens_per_correct", "tokens_per_correct_abstention"}
 # Every key a config may carry. A misspelt key is silently its default, and `judge_modle` once
 # left the weak model grading itself, so a key outside this set is a hard stop.
 KEYS = {"runner", "models", "judge_model", "synth_model", "objective", "concurrency",
         "max_turns", "judge", "subject", "synth", "corpus", "runner_args", "trials",
-        "timeout_minutes"}
+        "timeout_minutes", "judge_input_limit_kb", "classes"}
 
 
 @dataclass
@@ -42,6 +36,10 @@ class Config:
     kind: str = "repo"               # "repo" grades a diff, "question" grades an answer
     trials: int = 1                  # times each question is asked; pass^k and pass@k read them
     timeout_minutes: float = None    # the longest one agent or arm attempt may run; None waits
+    judge_input_limit_kb: float = 200  # the largest prompt a judge is sent; over it the run stops
+    classes: list = field(default_factory=list)  # the answer classes the coverage gate counts
+    file: Path = None                # the config file itself, which every gate's hash covers
+    checked: bool = False            # the gates passed on this eval as it stands; set by the CLI
 
     @property
     def can_optimize(self):
@@ -87,13 +85,13 @@ def _read_models(raw):
     return models
 
 
-def _read_timeout(raw):
-    minutes = raw.get("timeout_minutes")
-    if minutes is None:
+def _read_positive(raw, key, default=None):
+    number = raw.get(key, default)
+    if number is None:
         return None
-    if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) or minutes <= 0:
-        die(f"timeout_minutes must be a number above 0: {minutes!r}")
-    return minutes
+    if isinstance(number, bool) or not isinstance(number, (int, float)) or number <= 0:
+        die(f"{key} must be a number above 0: {number!r}")
+    return number
 
 
 def _read_file(raw, key, resolve):
@@ -124,51 +122,38 @@ def _read_trials(raw, kind):
     return trials
 
 
-def _refuse_objective_beyond_trials(objective, trials):
-    """pass^k and pass@k exist only for k up to the trials run. An objective naming a larger k
-    is refused here, before the run is spent, and not after it by a missing scoreboard key."""
-    asked = PASS_OBJECTIVE.fullmatch(objective)
-    if asked and int(asked.group(1)) > trials:
-        die(f"objective '{objective}' needs {asked.group(1)} trials, and the config runs {trials}")
+def _read_judge(raw, resolve, kind, tasks):
+    """A corpus graded by command alone is sent to no judge, so it needs no rubric."""
+    is_judged = kind == "question" or any(not task.check for task in tasks)
+    prompt = _read_prompt(raw, "judge", resolve, kind)
+    return prompt if prompt or not is_judged else die("config has no judge prompt")
 
 
-def _read_objective(raw, kind, trials):
-    """The number the optimize gate compares. A repo leg's numbers are whatever the judge
-    returns, macro averaged. A question leg's are fixed, and only the ones whose better
-    direction is known are taken: the gate would have kept a rewrite for a higher token count.
-    A question corpus that only runs may leave it out."""
-    objective = raw.get("objective", "macro_recall" if kind == "repo" else None)
-    if objective is None:
-        return None
-    known = str(objective).startswith("macro_") if kind == "repo" else (
-        objective in QUESTION_OBJECTIVES or PASS_OBJECTIVE.fullmatch(str(objective)))
-    if not known:
-        die(f"objective '{objective}' is not a number a {kind} leg's gate can compare")
-    _refuse_objective_beyond_trials(objective, trials)
-    return objective
-
-
-def _build_config(raw, root, resolve, kind, tasks):
+def _build_config(raw, path, resolve, kind, tasks):
     """Every field the engine reads, so load stays the front door: find the file, parse it,
     resolve the corpus."""
     runner_name = raw.get("runner", "claude")
     models = _read_models(raw)
     trials = _read_trials(raw, kind)
+    graded_by_command = kind == "repo" and all(task.check for task in tasks)
     return Config(
-        root=root,
+        root=path.parent, file=path,
         runner=_arm(runner_name, resolve) if kind == "question" else runner_name,
         models=models,
         judge_model=raw.get("judge_model", models[0]),
         synth_model=raw.get("synth_model", models[0]),
-        objective=_read_objective(raw, kind, trials),
+        objective=objective.read(raw, kind, trials,
+                                 "macro_passed" if graded_by_command else "macro_recall"),
         concurrency=_read_count(raw, "concurrency", 3),
         max_turns=_read_count(raw, "max_turns", 200),
-        judge_prompt=_read_prompt(raw, "judge", resolve, kind) or die("config has no judge prompt"),
+        judge_prompt=_read_judge(raw, resolve, kind, tasks),
         corpus=tasks,
         runner_args=_read_runner_args(raw, kind),
         subject=_read_file(raw, "subject", resolve),
         synth_prompt=_read_prompt(raw, "synth", resolve, kind),
-        kind=kind, trials=trials, timeout_minutes=_read_timeout(raw),
+        kind=kind, trials=trials, timeout_minutes=_read_positive(raw, "timeout_minutes"),
+        judge_input_limit_kb=_read_positive(raw, "judge_input_limit_kb", 200),
+        classes=_strings(raw, "classes"),
     )
 
 
@@ -195,4 +180,4 @@ def load(config_path):
         return (root / Path(value).expanduser()).resolve() if value else None
 
     kind, tasks = read_corpus(raw.get("corpus") or die("config has no corpus"), resolve)
-    return _build_config(raw, root, resolve, kind, tasks)
+    return _build_config(raw, path, resolve, kind, tasks)

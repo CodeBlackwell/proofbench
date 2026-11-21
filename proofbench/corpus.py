@@ -7,7 +7,8 @@ from .util import die
 TASK_KEYS = ("name", "path", "invoke", "default_branch", "answer_branch")
 # The keys an entry may carry beside the ones it must. A misspelt `holdout` or `ignore` would
 # otherwise be dropped in silence and the run would grade something other than what was asked.
-OPTIONAL = {"repo": {"kind", "holdout", "ignore", "items"}, "question": {"kind", "holdout"}}
+OPTIONAL = {"repo": {"kind", "holdout", "ignore", "items", "check", "hidden", "class"},
+            "question": {"kind", "holdout"}}
 
 
 @dataclass
@@ -20,6 +21,9 @@ class Task:
     holdout: bool = False  # scored by the optimize gate, never shown to the synth
     ignore: list = field(default_factory=list)  # path patterns left out of both diffs
     items: list = field(default_factory=list)   # the ground-truth items, when the task fixes them
+    check: str = None    # a shell command whose exit code is the grade; no judge is asked
+    hidden: list = field(default_factory=list)  # answer-side paths copied in before `check`
+    answer_class: str = None  # the `class` label the coverage gate counts
 
 
 @dataclass
@@ -43,6 +47,26 @@ def _strings(entry, key):
     if not isinstance(listed, list) or any(not isinstance(one, str) or not one.strip() for one in listed):
         die(f"{key} must be a list of strings: {entry}")
     return listed
+
+
+def _check(entry):
+    """`check` names the command grader. `hidden` is what that command needs and the agent must
+    not see, so it means nothing without one."""
+    check = entry.get("check")
+    if check is not None and (not isinstance(check, str) or not check.strip()):
+        die(f"check must be a shell command: {entry}")
+    if entry.get("hidden") and not check:
+        die(f"hidden lists files for a check command, and this entry has none: {entry}")
+    return check
+
+
+def _refuse_mixed_graders(tasks):
+    """A leg's score is an average over its tasks, and a pass rate cannot be averaged with a
+    recall. Until there is one number both graders share, a corpus uses one of them."""
+    if len({bool(task.check) for task in tasks}) > 1:
+        die("corpus mixes tasks graded by `check` with tasks graded by the judge: "
+            "give each grader its own config")
+    return tasks
 
 
 def _question_file(path):
@@ -83,9 +107,10 @@ def read_corpus(entries, resolve):
     if kind == "question":
         return kind, [QuestionSet(name=Path(entry["file"]).stem, holdout=_held(entry),
                                   path=_question_file(resolve(entry["file"]))) for entry in entries]
-    return kind, _refuse_shared_names([
+    return kind, _refuse_mixed_graders(_refuse_shared_names([
         Task(name=entry["name"], path=resolve(entry["path"]), invoke=entry["invoke"],
              default_branch=entry["default_branch"], answer_branch=entry["answer_branch"],
              holdout=_held(entry), ignore=_strings(entry, "ignore"),
-             items=_strings(entry, "items"))
-        for entry in entries])
+             items=_strings(entry, "items"), check=_check(entry),
+             hidden=_strings(entry, "hidden"), answer_class=entry.get("class"))
+        for entry in entries]))

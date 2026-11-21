@@ -1,0 +1,14 @@
+{
+  "name": "proofbench",
+  "owner": { "name": "LeChristopher Blackwell" },
+  "metadata": {
+    "description": "Build evals for agentic systems, and prove each one can be trusted."
+  },
+  "plugins": [
+    {
+      "name": "proofbench",
+      "source": "./",
+      "description": "The /proofbench skill: build an eval in your system's repo and take it through its gates."
+    }
+  ]
+}

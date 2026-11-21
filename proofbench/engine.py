@@ -7,7 +7,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import capture, judge, question, runner
+from . import capture, grader, judge, question, runner
 from .util import die, log, sum_reported
 
 
@@ -23,39 +23,46 @@ def _ground_truth(cfg, run_dir):
     return gt
 
 
-def _read_readme(work):
+def read_readme(work):
     """The task description the judge is shown, matched in any case. A repo that names the
     file readme.md used to reach the judge with no description at all."""
     found = sorted(p for p in work.iterdir() if p.is_file() and p.name.lower().startswith("readme"))
     return found[0].read_text(errors="replace") if found else ""
 
 
-def _attempt(cfg, task, model, baseline, out_dir):
+def attempt(cfg, task, model, baseline, out_dir):
     """One agent run in a clone under the system temp directory: outside the corpus repo, which
     holds the answer branch, and outside the run directory, which holds the answer diff. The
-    README is the one the baseline commit holds, read before the agent can touch it."""
+    README is the one the baseline commit holds, read before the agent can touch it. A task's
+    check command runs here, after the diff is taken and while the clone still exists."""
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
         work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
-        readme = _read_readme(work)
+        readme = read_readme(work)
         meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work,
                           out_dir / "run.log", cfg.timeout_minutes)
-        return readme, meta, capture.capture(work, baseline, task.ignore)
+        agent_diff = capture.capture(work, baseline, task.ignore)
+        verdict = grader.run_check(task, work, cfg.timeout_minutes) if task.check else None
+        return readme, meta, agent_diff, verdict
+
+
+def _judge(cfg, task, readme, answer, agent_diff):
+    return judge.grade(cfg.judge_prompt, readme, answer, agent_diff, cfg.judge_model, task.items,
+                       limit_kb=cfg.judge_input_limit_kb, name=task.name)
 
 
 def _run_and_grade(cfg, task, model, gt, out_dir):
     baseline, answer = gt[task.name]
-    readme, meta, agent_diff = _attempt(cfg, task, model, baseline, out_dir)
+    readme, meta, agent_diff, verdict = attempt(cfg, task, model, baseline, out_dir)
     cost = f", ${meta['cost_usd']:.3f}" if meta["cost_usd"] is not None else ""
     log(f"[{model}] {task.name}: {meta['seconds']}s{cost}"
         + (f", {meta['turns']} turns" if meta["turns"] else ""))
     (out_dir / "agent.diff").write_text(agent_diff)
-    grade, judge_cost = judge.grade(cfg.judge_prompt, readme, answer, agent_diff,
-                                    cfg.judge_model, task.items)
+    grade, judge_cost = (verdict, None) if verdict else _judge(cfg, task, readme, answer, agent_diff)
     grade.update(task=task.name, _meta={**meta, "judge_cost_usd": judge_cost})
     if not agent_diff.strip():
         grade["empty_capture"] = True
         log(f"\033[33m[{model}] {task.name}: EMPTY diff: the agent changed nothing, and the "
-            f"judge graded that as it stands (check the invoke if this is unexpected)\033[0m")
+            f"grader took that as it stands (check the invoke if this is unexpected)\033[0m")
     (out_dir / "grade.json").write_text(json.dumps(grade, indent=2))
     return grade
 
@@ -99,7 +106,7 @@ def bench(cfg, run_dir, models):
                 out.mkdir(parents=True, exist_ok=True)
                 return _run_and_grade(cfg, task, model, gt, out)
             grades = list(pool.map(work, cfg.corpus))
-        board[model] = aggregate(grades)
+        board[model] = {**aggregate(grades), "eval_checked": cfg.checked}
         (run_dir / model).mkdir(parents=True, exist_ok=True)
         (run_dir / model / "scoreboard.json").write_text(json.dumps(board[model], indent=2))
     (run_dir / "scoreboard.json").write_text(json.dumps(board, indent=2))

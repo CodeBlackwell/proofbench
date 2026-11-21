@@ -58,7 +58,8 @@ def grade_one(cfg, question, result, judge_model):
         return {"correct": correct, "graded_by": "abstention"}
     if ids_match(question, result):
         return {"correct": 1, "graded_by": "exact"}
-    verdict, cost_usd = judge.grade_answer(cfg.judge_prompt, question, result, judge_model)
+    verdict, cost_usd = judge.grade_answer(cfg.judge_prompt, question, result, judge_model,
+                                           cfg.judge_input_limit_kb)
     return {"correct": int(verdict["correct"]), "graded_by": "judge",
             "judge_why": verdict.get("why", ""), "judge_cost_usd": cost_usd}
 
@@ -97,7 +98,7 @@ def _leg(cfg, questions, model, run_dir):
             return _ask_and_grade(cfg, question, trial, model, out_dir)
         records = list(pool.map(work, attempts))
     leg = {**scoreboard.describe_provenance(records), **scoreboard.metrics(records),
-           "records": records}
+           "eval_checked": cfg.checked, "records": records}
     (run_dir / model).mkdir(parents=True, exist_ok=True)
     (run_dir / model / "scoreboard.json").write_text(json.dumps(leg, indent=2))
     return leg

@@ -38,4 +38,4 @@ jobs:
           cd "$(mktemp -d)"
           uvx --from "$wheel" proofbench --version
           uvx --from "$wheel" python -c "from importlib.resources import files; assert (files('proofbench') / 'prompts' / 'judge.md').is_file()"
-          uvx --from "$wheel" proofbench run --config "$repo/examples/question-demo/proofbench.question.yaml"
+          uvx --from "$wheel" proofbench run --unchecked --config "$repo/examples/question-demo/proofbench.question.yaml"

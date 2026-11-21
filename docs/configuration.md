@@ -23,6 +23,8 @@ checked when the file is loaded.
   - A corpus, a runner and a judge prompt let you `run`.
   - Adding `subject`, `synth`, an `objective` and held-out corpus entries lets you `optimize`.
 - **Nothing is spent until the whole file passes its checks.**
+- **`run` and `optimize` refuse an eval that has not passed its gates.** See
+  [building-an-eval.md](building-an-eval.md).
 
 ## Every key
 
@@ -30,18 +32,20 @@ checked when the file is loaded.
 |---|---|---|---|
 | `corpus` | required | both | The tasks. See [Corpus entries](#corpus-entries) |
 | `models` | required | both | A list of model names to run, strongest first |
-| `judge` | required | both | Path to the judge prompt, or `default` on a repo corpus |
+| `judge` | required unless every task has a `check` | both | Path to the judge prompt, or `default` on a repo corpus |
 | `runner` | `claude` | both | What does the task. See [Runners](io-contracts.md#the-repo-runner) |
 | `judge_model` | first of `models` | both | The model that grades |
 | `synth_model` | first of `models` | both | The model that rewrites the subject in `optimize` |
 | `concurrency` | `3` | both | How many attempts run at once |
 | `timeout_minutes` | none | both | The longest one attempt may run. Longer stops the run |
-| `objective` | `macro_recall` on a repo corpus, none on a question corpus | both | The number the `optimize` gate compares |
+| `objective` | `macro_recall` on a repo corpus (`macro_passed` when graded by command), none on a question corpus | both | The number the `optimize` gate compares |
 | `subject` | none | both | Path to the file `optimize` rewrites |
 | `synth` | none | both | Path to the rewrite prompt, or `default` on a repo corpus |
 | `max_turns` | `200` | repo, `claude` runner only | Passed to `claude` as `--max-turns` |
 | `runner_args` | `[]` | question only | Extra flags given to the arm after `--model MODEL` |
 | `trials` | `1` | question only | How many times each question is asked |
+| `judge_input_limit_kb` | `200` | both | The largest prompt a judge may be sent. Over it, the run stops and names the task |
+| `classes` | none | both | The kinds of answer the [coverage gate](building-an-eval.md#the-gates) counts |
 
 Notes:
 
@@ -67,6 +71,9 @@ corpus:
     ignore: ["dist/**", notes.md]     # optional; paths that are not part of the fix
     items:                            # optional; what the fix does, when you want to say so
       - "is_prime returns False for a composite number"
+    check: "python -m pytest -q"      # optional; grade by this command and ask no judge
+    hidden: [tests/test_primes.py]    # optional; answer-side paths copied in before `check`
+    class: off-by-one                 # optional; the label the coverage gate counts
 ```
 
 - `path` must be the root of its own repository, not a folder inside another one.
@@ -99,6 +106,9 @@ corpus:
 - A judge reply that does not rule on exactly your items stops the run.
 - If the patterns leave nothing of the answer, the run stops.
 - How to build good tasks: [CORPUS.md](../CORPUS.md).
+
+**`check` and `hidden`** grade the task by running a command. See
+[the command grader](building-an-eval.md#the-command-grader).
 
 ### A question file
 
@@ -168,6 +178,9 @@ Each of these stops the run before any agent or judge is started:
 - A corpus entry is missing a field or carries a key proofbench does not read, or the corpus
   mixes kinds.
 - Two repo tasks share a name.
+- A repo corpus mixes tasks that have a `check` with tasks that do not, or a task lists
+  `hidden` paths and has no `check`.
+- `judge_input_limit_kb` is not a number above 0, or `classes` is not a list of strings.
 - On a question corpus: the runner file is missing or not executable, or a question file does
   not exist.
 

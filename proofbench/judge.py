@@ -37,13 +37,23 @@ def _recall_over(items, result):
     return sum(verdicts.values()) / len(items)
 
 
-def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=()):
+def _ask(prompt, model, limit_kb, name):
+    """One oversized agent diff once cost $4.50 to grade. An input over the limit stops the run
+    and names what it was for: cut to fit, it would be graded on part of the evidence."""
+    size_kb = len(prompt.encode()) / 1024
+    if limit_kb is not None and size_kb > limit_kb:
+        die(f"judge input for {name} is {size_kb:.0f} KB, over judge_input_limit_kb ({limit_kb})")
+    return claude_json(prompt, model)
+
+
+def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=(), limit_kb=None,
+          name="this task"):
     """The judge's reply, and what asking for it cost."""
     prompt = (f"{judge_prompt}\n\n{_list_items(items)}"
               f"===== README =====\n{readme}\n\n"
               f"===== ANSWER_DIFF =====\n{answer_diff}\n\n"
               f"===== AGENT_DIFF =====\n{agent_diff}\n")
-    result, cost_usd = claude_json(prompt, model)
+    result, cost_usd = _ask(prompt, model, limit_kb, name)
     if items:
         result["recall"] = _recall_over(items, result)
     if not numeric_fields(result):
@@ -51,7 +61,7 @@ def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=()):
     return result, cost_usd
 
 
-def grade_answer(judge_prompt, question, result, model):
+def grade_answer(judge_prompt, question, result, model, limit_kb=None):
     """Grade one prose answer against the known answer. Only reached when an exact id match
     could not settle the question, so the judge reads words and numbers written as words,
     never ids. A verdict that is not 1 or 0 is a hard stop, exactly as an empty grade is.
@@ -62,7 +72,7 @@ def grade_answer(judge_prompt, question, result, model):
               f"===== EXPECTED =====\n{json.dumps(expected, ensure_ascii=False)}\n\n"
               f"===== AGENT_ANSWER =====\n{result.get('answer', '')}\n\n"
               f"===== AGENT_ANSWER_IDS =====\n{json.dumps(result['answer_ids'], ensure_ascii=False)}\n")
-    verdict, cost_usd = claude_json(prompt, model)
+    verdict, cost_usd = _ask(prompt, model, limit_kb, question["id"])
     if verdict.get("correct") not in (0, 1):
         die(f"answer judge returned no binary 'correct' on {question['id']}: {verdict}")
     return verdict, cost_usd

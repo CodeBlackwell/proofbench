@@ -19,7 +19,7 @@ is no repository and no diff. Use it for retrieval, lookup and classification sk
 ## Try it offline
 
 ```bash
-uv run proofbench run --config examples/question-demo/proofbench.question.yaml
+uv run proofbench run --unchecked --config examples/question-demo/proofbench.question.yaml
 ```
 
 This uses a stub arm that needs no model, so it costs nothing. Three questions, one of them
@@ -57,6 +57,7 @@ One JSON object per line.
 | `answer` | list | yes | The ids of the correct answer. Empty when there is none |
 | `answerable` | true or false | yes | False when the correct response is to decline |
 | `answer_names` | list | no | The answer in words. Shown to the judge |
+| `class` | text | no | The answer class the [coverage gate](building-an-eval.md#the-gates) counts |
 | anything else | | no | Kept in the records. Never shown to the arm |
 
 Example:

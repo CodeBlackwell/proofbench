@@ -1,10 +1,10 @@
-"""proofbench {run|optimize} — config-driven eval and self-improvement for agent skills."""
+"""proofbench {run|optimize|controls|check|status}: build an eval, check it, then run it."""
 import argparse
 import sys
 import time
 from pathlib import Path
 
-from . import __version__, config, engine, optimize
+from . import __version__, config, controls, engine, gates, optimize
 from .util import HarnessError, die, log
 
 DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.yaml"
@@ -43,7 +43,19 @@ def run_dir(run_id):
     return chosen
 
 
+def _admit(cfg, args):
+    """Scores are produced only by an eval that passed its gates, unless the caller says
+    otherwise, and then every scoreboard says so."""
+    if args.unchecked:
+        log("\033[33mrunning unchecked: this eval has not passed its gates, and every "
+            "scoreboard it writes says so\033[0m")
+        return
+    gates.refuse_unchecked(cfg)
+    cfg.checked = True
+
+
 def cmd_run(cfg, args):
+    _admit(cfg, args)
     board = engine.bench(cfg, run_dir(args.run_id), cfg.models)
     for model, leg in board.items():
         if cfg.kind == "question":
@@ -54,20 +66,46 @@ def cmd_run(cfg, args):
 
 
 def cmd_optimize(cfg, args):
+    _admit(cfg, args)
     optimize.optimize(cfg, run_dir(args.run_id))
+
+
+def cmd_controls(cfg, args):
+    log(f"wrote {controls.build(cfg)} controls and their predictions to {controls.folder(cfg)}")
+
+
+def cmd_check(cfg, args):
+    if args.gate is None:
+        die(f"name the gate to check: {', '.join(gates.GATES)}")
+    if not gates.check(cfg, args.gate, run_dir(args.run_id)):
+        sys.exit(1)
+
+
+def cmd_status(cfg, args):
+    states = gates.status(cfg)
+    for gate, state in states.items():
+        print(f"{gate:9} {state}")
+    sys.exit(0 if set(states.values()) == {"passed"} else 1)
+
+
+COMMANDS = {"run": cmd_run, "optimize": cmd_optimize, "controls": cmd_controls,
+            "check": cmd_check, "status": cmd_status}
 
 
 def main():
     parser = argparse.ArgumentParser(prog="proofbench")
     parser.add_argument("--version", action="version", version=f"proofbench {__version__}")
-    parser.add_argument("command", choices=["run", "optimize"])
+    parser.add_argument("command", choices=list(COMMANDS))
+    parser.add_argument("gate", nargs="?", choices=gates.GATES, help="for `check`")
     parser.add_argument("--config")
     parser.add_argument("--demo", action="store_true")
     parser.add_argument("--run-id", help="folder under runs/; defaults to the start time")
+    parser.add_argument("--unchecked", action="store_true",
+                        help="run an eval that has not passed its gates")
     args = parser.parse_args()
     try:
         cfg = config.load(_config_path(args))
-        (cmd_run if args.command == "run" else cmd_optimize)(cfg, args)
+        COMMANDS[args.command](cfg, args)
     except HarnessError as err:
         print(f"\033[31m[proofbench] {err}\033[0m", file=sys.stderr)
         sys.exit(1)

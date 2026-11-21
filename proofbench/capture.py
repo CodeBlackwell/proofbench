@@ -24,7 +24,7 @@ def _git(repo, *args):
     return proc.stdout
 
 
-def _pin(repo, ref):
+def pin(repo, ref):
     return _git(repo, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
 
 
@@ -40,8 +40,8 @@ def ground_truth(repo, default_branch, answer_branch, ignore=()):
     them."""
     if not Path(_git(repo, "rev-parse", "--show-toplevel").strip()).samefile(repo):
         die(f"{repo} is not the root of a git repository")
-    baseline = _pin(repo, default_branch)
-    answer = _git(repo, "diff", baseline, _pin(repo, answer_branch), "--", ".",
+    baseline = pin(repo, default_branch)
+    answer = _git(repo, "diff", baseline, pin(repo, answer_branch), "--", ".",
                   *_leave_out(ignore))
     return baseline, answer or die(
         f"{answer_branch} changes nothing against {default_branch} in {repo}: no ground truth")

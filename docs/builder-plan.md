@@ -162,6 +162,23 @@ Built on 2026-11-20.
 
 ### Phase 1: the outcome builder (0.6.0)
 
+Built on 2026-11-21, except the three gates on tenex that cost money. What was settled while
+building it:
+
+- **Where tenex's eval is.** `evals/console/` on the branch `proofbench-eval` of
+  `cyber-tenex-takehome`, uncommitted. Its coverage gate has passed. The adapter and headroom
+  gates need `ANTHROPIC_API_KEY` in the environment.
+- **One grader per corpus.** A pass rate and a recall have no shared average, so a config
+  that mixes `check` tasks with judged tasks is refused. Each grader gets its own config.
+- **Coverage is the same for both kinds.** A repo task takes a `class` key, as a question
+  takes a `class` field.
+- **The judge input limit defaults to 200 KB.** That is a placeholder until sizes are
+  measured on tenex.
+- **tenex's absence questions have an answer.** The console prints prose and cannot report
+  an abstention, so "no such activity" is the expected answer `none` and the judge reads it.
+- **tenex's generator plants every chain on the same first user.** Seven of its thirteen
+  user questions share one answer, which the eval can only report.
+
 - The judge input limit.
 - The command grader with held-back files.
 - `controls`, `check` and `status`, and the state file.

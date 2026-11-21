@@ -186,12 +186,17 @@ runs/<run-id>/
     "macro_recall": 0.75,
     "macro_precision": 1.0,
     "empty_captures": ["ranges"],
-    "resources": {"seconds": 35.4, "cost_usd": 0.0168, "turns": 14, "judge_cost_usd": 0.0912}
+    "resources": {"seconds": 35.4, "cost_usd": 0.0168, "turns": 14, "judge_cost_usd": 0.0912},
+    "eval_checked": true
   }
 }
 ```
 
-- `tasks`: the numbers the judge returned for each task. For a task that lists `items`,
+- `eval_checked`: true when every [gate](building-an-eval.md) had passed on this eval as it
+  stood. False means the run was made with `--unchecked`. A question scoreboard carries the
+  same key.
+- `tasks`: the numbers the grader returned for each task. A task graded by command has
+  `passed`, 1 or 0, and the leg has `macro_passed`. For a task that lists `items`,
   `recall` is counted by proofbench from the judge's verdict on each one.
 - `macro_<field>`: the plain average of that field over every task. A field is averaged only
   if every task has it.

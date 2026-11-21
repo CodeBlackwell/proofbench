@@ -1,5 +1,5 @@
 # The question task kind. Nothing here reaches the network:
-#   proofbench run --config examples/question-demo/proofbench.question.yaml
+#   proofbench run --unchecked --config examples/question-demo/proofbench.question.yaml
 #
 # The runner is any executable that is handed a question's id and text as JSON on stdin and
 # prints one result object on stdout. The harness never hands an arm the answer key. This one

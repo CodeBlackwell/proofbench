@@ -10,6 +10,7 @@ Start with the [README](../README.md). These pages go deeper.
 | [io-contracts.md](io-contracts.md) | What a runner, an arm and the judge receive and return, and every file a run writes |
 | [question-tasks.md](question-tasks.md) | The question file, how answers are graded, and what each number means |
 | [optimize.md](optimize.md) | The self-improving loop, the held-out split, and the keep or revert gate |
+| [building-an-eval.md](building-an-eval.md) | The gates an eval passes before it runs, the controls, and the command grader |
 
 ## Guides
 
