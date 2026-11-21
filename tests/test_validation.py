@@ -269,6 +269,13 @@ def test_a_question_corpus_is_shipped_no_prompt_and_has_to_bring_its_own(tmp_pat
         load(tmp_path, judge="default")
 
 
+def test_the_plugin_is_published_under_the_package_s_version():
+    """The skill and the commands ship from one repository, so one version names both."""
+    import proofbench
+    manifest = Path(__file__).resolve().parent.parent / ".claude-plugin" / "plugin.json"
+    assert json.loads(manifest.read_text())["version"] == proofbench.__version__
+
+
 def test_the_cli_reports_the_version_written_in_the_package(capsys, monkeypatch):
     """The build reads its version from this same string, so the two cannot disagree. The
     installed metadata is not compared here: an editable install keeps the version it was
