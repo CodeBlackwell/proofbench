@@ -50,6 +50,10 @@ Then ask the user only what the repo cannot tell you:
 - What a right result looks like, and what the kinds of right and wrong result are. These
   become the answer classes.
 - Which models to run, strongest first.
+- How the system's model calls are paid for: its own API key, or the Claude subscription
+  through the `claude` CLI. For the subscription, the adapter stands where the system
+  expects its model client and asks `claude -p` instead. Say plainly what that changes
+  about the wire, such as tool calls carried in a JSON reply.
 
 ## Step 2: choose the shape
 

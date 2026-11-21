@@ -162,12 +162,21 @@ Built on 2026-11-20.
 
 ### Phase 1: the outcome builder (0.6.0)
 
-Built on 2026-11-21, except the three gates on tenex that cost money. What was settled while
+Built on 2026-11-21. tenex's eval passed all four gates the same day: 184 of 184 controls
+graded as predicted, and the app's Sonnet model scored 30 of 42 (0.714) on the headroom run.
+The gates cost $3.61 at API prices, all of it on the subscription. What was settled while
 building it:
 
 - **Where tenex's eval is.** `evals/console/` on the branch `proofbench-eval` of
-  `cyber-tenex-takehome`, uncommitted. Its coverage gate has passed. The adapter and headroom
-  gates need `ANTHROPIC_API_KEY` in the environment.
+  `cyber-tenex-takehome`, uncommitted.
+- **tenex is asked through the `claude` CLI, on the subscription.** Its adapter stands where
+  the app expects the SDK client. The app's loop, tools, fencing and citation checks run
+  unchanged. The wire differs: tool schemas go in the system prompt and the model names its
+  tool calls in a JSON reply, where production uses the API's native tool calls.
+- **Two limits of the gate hashes, found on tenex.** A gate covers the runner file and not
+  what that file calls, so editing `adapter.py` behind `adapter.sh` leaves the adapter gate
+  reading as passed. And a gate covers every byte of the config, so fixing a comment turns
+  all four stale.
 - **One grader per corpus.** A pass rate and a recall have no shared average, so a config
   that mixes `check` tasks with judged tasks is refused. Each grader gets its own config.
 - **Coverage is the same for both kinds.** A repo task takes a `class` key, as a question
