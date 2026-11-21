@@ -86,6 +86,8 @@ In the repo of the system you want to evaluate, run `/proofbench`. It works in t
 
 - Answers are mined from history you own, or asked of you. An answer a model invented is
   never accepted without your approval.
+- It can grade the path as well as the result: the steps your system took, checked by rules
+  you declare and by a judge. See [Grading the path](docs/building-an-eval.md#grading-the-path).
 - The skill states the cost and waits before every step that spends money.
 - You can do all of it by hand. [docs/building-an-eval.md](docs/building-an-eval.md) covers
   each gate and command.
@@ -207,9 +209,9 @@ shape of each file are in [docs/io-contracts.md](docs/io-contracts.md).
 
 | Page | Read it when you want to |
 |---|---|
-| [docs/building-an-eval.md](docs/building-an-eval.md) | Take an eval through its gates, write controls, or grade by command |
+| [docs/building-an-eval.md](docs/building-an-eval.md) | Take an eval through its gates, write controls, grade by command, or grade the path |
 | [docs/configuration.md](docs/configuration.md) | Look up a config key, a default, or a load-time error |
-| [docs/io-contracts.md](docs/io-contracts.md) | Write a runner or an arm, or read the files a run writes |
+| [docs/io-contracts.md](docs/io-contracts.md) | Write a runner, an arm or a step log, or read the files a run writes |
 | [docs/question-tasks.md](docs/question-tasks.md) | Build a question corpus and understand its numbers |
 | [docs/optimize.md](docs/optimize.md) | Use the self-improving loop and its held-out split |
 | [CORPUS.md](CORPUS.md) | Build repo tasks that are hard to game and do not leak their answer |

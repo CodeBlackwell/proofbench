@@ -11,7 +11,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import capture, engine, grader, judge, question
+from . import capture, engine, grader, judge, path_controls, question
 from .util import die, spawn
 
 NOISE = ("diff --git a/proofbench-noise.txt b/proofbench-noise.txt\nnew file mode 100644\n"
@@ -95,6 +95,8 @@ def build(cfg):
     predictions_file = folder(cfg) / "predictions.json"
     predictions = json.loads(predictions_file.read_text()) if predictions_file.is_file() else {}
     made = _mechanical(cfg)
+    of_paths = path_controls.build(cfg, folder(cfg)) if cfg.path else {}
+    predictions.update(of_paths)
     for (owner, name), (text, predicted) in made.items():
         predictions[f"{owner}/{name}"] = predicted
         if text is not None:
@@ -102,7 +104,7 @@ def build(cfg):
             (folder(cfg) / owner / f"{name}{suffix}").write_text(text)
     folder(cfg).mkdir(parents=True, exist_ok=True)
     predictions_file.write_text(json.dumps(predictions, indent=2, sort_keys=True) + "\n")
-    return len(made)
+    return len(made) + len(of_paths)
 
 
 def _grade_questions(cfg):
@@ -145,6 +147,8 @@ def _grade_task(cfg, task):
 
 def grade(cfg):
     """Every control of the corpus, graded exactly as an agent's result would be."""
+    of_paths = path_controls.grade(cfg, folder(cfg)) if cfg.path else {}
     if cfg.kind == "question":
-        return _grade_questions(cfg)
-    return {key: graded for task in cfg.corpus for key, graded in _grade_task(cfg, task)}
+        return {**_grade_questions(cfg), **of_paths}
+    return {**{key: graded for task in cfg.corpus for key, graded in _grade_task(cfg, task)},
+            **of_paths}

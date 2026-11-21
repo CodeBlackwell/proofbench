@@ -9,7 +9,7 @@ import json
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
-from . import judge, runner, scoreboard
+from . import judge, paths, runner, scoreboard, steps
 from .util import die, log
 
 
@@ -64,14 +64,25 @@ def grade_one(cfg, question, result, judge_model):
             "judge_why": verdict.get("why", ""), "judge_cost_usd": cost_usd}
 
 
+def _grade_path(cfg, question, result, out_dir):
+    """What the path grade adds to one attempt's record: nothing, on an eval that grades
+    outcomes alone. The arm's result is written out because a rule script is handed it."""
+    if not cfg.path:
+        return {}
+    (out_dir / paths.ANSWER["question"]).write_text(json.dumps(result, indent=2))
+    fields, cost_usd = paths.grade(cfg, question["text"], question["id"], out_dir)
+    return {**fields, "path_judge_cost_usd": cost_usd}
+
+
 def _ask_and_grade(cfg, question, trial, model, out_dir):
     """The arm's own report of how it answered travels with the grade. An arm that says it read
     a canned reply is the only thing downstream can learn that from, so dropping "stubbed" here
     is what let a canned leg reach the registry looking like a measurement."""
     result = runner.ask(cfg.runner, model, question, out_dir / "run.log", cfg.runner_args,
-                        cfg.timeout_minutes)
+                        cfg.timeout_minutes, out_dir / steps.FILE if cfg.path else None)
     record = {"id": question["id"], "trial": trial,
               **grade_one(cfg, question, result, cfg.judge_model),
+              **_grade_path(cfg, question, result, out_dir),
               "abstained": bool(result["abstained"]),
               "answer_ids": result["answer_ids"], "answer": result.get("answer"),
               "answerable": bool(question["answerable"]),

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from . import objective, runner
+from . import objective, paths, runner
 from .corpus import QuestionSet, Task, _strings, read_corpus  # noqa: F401 (read as config.Task)
 from .util import die
 
@@ -15,7 +15,7 @@ from .util import die
 # left the weak model grading itself, so a key outside this set is a hard stop.
 KEYS = {"runner", "models", "judge_model", "synth_model", "objective", "concurrency",
         "max_turns", "judge", "subject", "synth", "corpus", "runner_args", "trials",
-        "timeout_minutes", "judge_input_limit_kb", "classes"}
+        "timeout_minutes", "judge_input_limit_kb", "classes", "path"}
 
 
 @dataclass
@@ -38,6 +38,7 @@ class Config:
     timeout_minutes: float = None    # the longest one agent or arm attempt may run; None waits
     judge_input_limit_kb: float = 200  # the largest prompt a judge is sent; over it the run stops
     classes: list = field(default_factory=list)  # the answer classes the coverage gate counts
+    path: paths.PathSpec = None      # how the path is graded; None grades outcomes alone
     file: Path = None                # the config file itself, which every gate's hash covers
     checked: bool = False            # the gates passed on this eval as it stands; set by the CLI
 
@@ -153,7 +154,7 @@ def _build_config(raw, path, resolve, kind, tasks):
         synth_prompt=_read_prompt(raw, "synth", resolve, kind),
         kind=kind, trials=trials, timeout_minutes=_read_positive(raw, "timeout_minutes"),
         judge_input_limit_kb=_read_positive(raw, "judge_input_limit_kb", 200),
-        classes=_strings(raw, "classes"),
+        classes=_strings(raw, "classes"), path=paths.read(raw, resolve),
     )
 
 

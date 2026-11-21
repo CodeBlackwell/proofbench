@@ -14,7 +14,8 @@ DEMO = Path(__file__).resolve().parent.parent / "examples" / "proofbench.demo.ya
 HEADLINE = ("stubbed", "is_measured", "measures", "questions", "trials", "answerable",
             "unanswerable", "accuracy", "abstention_rate", "non_abstention_rate_answerable",
             "abstention_correct_unanswerable", "tokens_total", "tokens_per_correct",
-            "tokens_per_correct_abstention", "unstable_questions")
+            "tokens_per_correct_abstention", "unstable_questions", "rules_held_rate",
+            "path_sound_rate")
 
 
 def _config_path(args):

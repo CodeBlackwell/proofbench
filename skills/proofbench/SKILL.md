@@ -49,6 +49,8 @@ Then ask the user only what the repo cannot tell you:
 - What claim the eval should test. One sentence.
 - What a right result looks like, and what the kinds of right and wrong result are. These
   become the answer classes.
+- Whether how the system gets to its result matters, or only the result. If it matters, the
+  eval grades the path too. See "The path" below.
 - Which models to run, strongest first.
 - How the system's model calls are paid for: its own API key, or the Claude subscription
   through the `claude` CLI. For the subscription, the adapter stands where the system
@@ -76,6 +78,9 @@ evals/<name>/
   tasks/              question files, when the kind is question
   harvest.py          collects the real cases, when answers are mined
   judge.md            the rubric, when a judge grades
+  path-judge.md       the path rubric, when a judge reads the path
+  rules/              scripts for path rules the fixed kinds cannot say
+  paths/              the recorded good path of each task
   controls/           written by `proofbench controls`, then added to by hand
   gates.json          written by `proofbench check`; never by you
   .gitignore          holds one line: runs/
@@ -113,6 +118,31 @@ proofbench check adapter --config proofbench.yaml
    remove easy ones to move the number.
 
 When a gate fails, `gates.json` holds the reason under `detail`.
+
+## The path, when it is graded
+
+Skip this section when only the result matters.
+
+1. **The adapter writes the step log** to the file named in `PROOFBENCH_STEPS`: one JSON line
+   per tool call, holding `tool`, `input` and `result`. The built-in `claude` runner needs
+   nothing.
+2. **Ask the user what a good path is,** and write their answer as rules under `path:` in the
+   config. Use `called`, `never_called`, `before` and `max_steps` where they fit, and a
+   `script` for the rest. Add a `judge` rubric only for what no rule can check: with one,
+   every attempt costs a judge call.
+3. **Check `adapter`, `coverage` and `headroom`.** With a path, `headroom` comes before
+   `controls`, because its run folder holds a step log and an answer file for every task.
+4. **Record good paths.** From the headroom run, list the attempts whose answer was right and
+   whose rules all held. Show the user the list, and copy only the ones they approve:
+   `steps.jsonl` and the answer file into `paths/<task>/`.
+5. **Build and draft the path controls.** `proofbench controls` builds the mechanical ones
+   from the recorded paths. Draft by hand, for each script rule and for the rubric, one path
+   it must catch and one it must let through. Show each to the user with its prediction, and
+   write only the approved ones as `controls/<task>/<name>.path/`.
+6. **Check `controls`.**
+
+A change under `path:` turns `controls` stale and leaves the other three passed. Adding or
+removing `path:` itself turns `adapter` stale too.
 
 ## Step 5: finish
 

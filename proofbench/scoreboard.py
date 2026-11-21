@@ -94,6 +94,13 @@ def _find_unstable(questions):
                   if 0 < sum(attempt["correct"] for attempt in attempts) < len(attempts))
 
 
+def _path_rates(records):
+    """How the paths graded, on an eval that grades them: the share of attempts where every
+    rule held, and the share the path judge called sound. Neither enters the accuracy."""
+    return {f"{name}_rate": _rate(sum(record[name] for record in records), len(records))
+            for name in ("rules_held", "path_sound") if name in records[0]}
+
+
 def metrics(records):
     """What this set of records measured, under names it can carry. The answerable and the
     unanswerable counts print on every leg, because they are what decides whether the rate
@@ -113,6 +120,7 @@ def metrics(records):
         **score(records, tokens),
         **_pass_rates(questions, trials, "" if answerable else "abstention_"),
         "unstable_questions": _find_unstable(questions),
+        **_path_rates(records),
         **_abstention_rates(answerable, unanswerable),
         "tokens_in": sum(record["tokens_in"] for record in records),
         "tokens_out": sum(record["tokens_out"] for record in records),

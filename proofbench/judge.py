@@ -37,7 +37,7 @@ def _recall_over(items, result):
     return sum(verdicts.values()) / len(items)
 
 
-def _ask(prompt, model, limit_kb, name):
+def ask(prompt, model, limit_kb, name):
     """One oversized agent diff once cost $4.50 to grade. An input over the limit stops the run
     and names what it was for: cut to fit, it would be graded on part of the evidence."""
     size_kb = len(prompt.encode()) / 1024
@@ -53,7 +53,7 @@ def grade(judge_prompt, readme, answer_diff, agent_diff, model, items=(), limit_
               f"===== README =====\n{readme}\n\n"
               f"===== ANSWER_DIFF =====\n{answer_diff}\n\n"
               f"===== AGENT_DIFF =====\n{agent_diff}\n")
-    result, cost_usd = _ask(prompt, model, limit_kb, name)
+    result, cost_usd = ask(prompt, model, limit_kb, name)
     if items:
         result["recall"] = _recall_over(items, result)
     if not numeric_fields(result):
@@ -72,7 +72,7 @@ def grade_answer(judge_prompt, question, result, model, limit_kb=None):
               f"===== EXPECTED =====\n{json.dumps(expected, ensure_ascii=False)}\n\n"
               f"===== AGENT_ANSWER =====\n{result.get('answer', '')}\n\n"
               f"===== AGENT_ANSWER_IDS =====\n{json.dumps(result['answer_ids'], ensure_ascii=False)}\n")
-    verdict, cost_usd = _ask(prompt, model, limit_kb, question["id"])
+    verdict, cost_usd = ask(prompt, model, limit_kb, question["id"])
     if verdict.get("correct") not in (0, 1):
         die(f"answer judge returned no binary 'correct' on {question['id']}: {verdict}")
     return verdict, cost_usd

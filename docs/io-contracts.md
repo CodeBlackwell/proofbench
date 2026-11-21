@@ -10,6 +10,7 @@ disk. Read this to write your own runner or arm, or to read a run's files.
 - [The big picture](#the-big-picture)
 - [The repo runner](#the-repo-runner)
 - [The question arm](#the-question-arm)
+- [The step log](#the-step-log)
 - [The judge and the synth](#the-judge-and-the-synth)
 - [The run folder](#the-run-folder)
 - [The repo scoreboard](#the-repo-scoreboard)
@@ -116,6 +117,41 @@ One JSON object and nothing else:
 - Report `stubbed` and `cost_usd` honestly. A leg counts as a measurement only when the arm
   says it was not canned and says what it cost.
 
+## The step log
+
+Written only when the config has a [`path`](building-an-eval.md#grading-the-path) key.
+
+- **Where:** the file named by the `PROOFBENCH_STEPS` environment variable. proofbench sets
+  it for a question arm and for an executable repo runner.
+- **Format:** JSON lines, one step per line, in the order the steps were taken.
+
+```json
+{"tool": "list_findings", "input": {"upload_id": 1}, "result": "3 findings, worst first"}
+```
+
+| Field | Meaning |
+|---|---|
+| `tool` | The name of the tool that was called. Text |
+| `input` | What it was called with. Any JSON value |
+| `result` | What came back. Any JSON value, and null when no result arrived |
+
+- All three fields are required on every line. A line without them stops the run.
+- A system that called no tool still writes the file, empty. A missing file stops the run.
+- The built-in `claude` runner is not given the variable. proofbench starts it with
+  `--output-format stream-json --verbose` and reads the steps from that stream. Each
+  `tool_use` block is a step, and the `tool_result` block carrying its id is the result. A
+  subagent's calls are included, in the order they arrived.
+- A repo runner is given a file outside the run folder, because the run folder holds the
+  answer diff. The log is copied into the run folder afterwards.
+
+**A rule script** is called as `SCRIPT STEPS_FILE ANSWER_FILE`.
+
+- `STEPS_FILE` is the step log.
+- `ANSWER_FILE` is what the system returned: the arm's result object as JSON for a question,
+  or the agent's diff for a repo task.
+- Exit 0 means the rule held and exit 1 means it did not. Any other code stops the run.
+- The first line it prints is kept as the reason.
+
 ## The judge and the synth
 
 Both are one call to `claude` with no tools and none of your personal configuration:
@@ -155,6 +191,7 @@ runs/<run-id>/
     <task>/
       run.log                          what the agent printed
       agent.diff                       what the agent changed
+      steps.jsonl                      the step log, when the path is graded
       grade.json                       the judge's reply, plus cost and timing for both
 ```
 
@@ -168,6 +205,8 @@ runs/<run-id>/
     <question id>/trial-<n>/
       run.log                          what the arm printed
       result.json                      the arm's reply and its grade
+      steps.jsonl                      the step log, when the path is graded
+      answer.json                      the arm's reply alone, as a rule script is handed it
 ```
 
 - The folder is created where you ran the command.
@@ -205,7 +244,12 @@ runs/<run-id>/
 - `resources`: seconds, cost and turns added up across the tasks. Cost and turns are null
   unless the runner reported them.
 - `judge_cost_usd`, inside `resources`: what the judge cost across the tasks, kept apart from
-  the agents' `cost_usd`. A reply the judge had to be asked for twice counts both times.
+  the agents' `cost_usd`. A reply the judge had to be asked for twice counts both times. The
+  path judge's cost is added in here.
+- `rules_held` and `path_sound`, 1 or 0 on each task, with `macro_rules_held` and
+  `macro_path_sound` on the leg: present when the [path is graded](building-an-eval.md#grading-the-path).
+  Each task's `grade.json` also holds `rules`, which names every rule, whether it held and
+  why, and `path_why`, the path judge's reason.
 
 ## The question scoreboard
 
@@ -235,6 +279,7 @@ Each model's entry has three parts.
 | `non_abstention_rate_answerable` | Share of answerable attempts where the arm did answer |
 | `abstention_correct_unanswerable` | Share of unanswerable attempts where the arm declined |
 | `tokens_in`, `tokens_out`, `tokens_total` | Token totals over every attempt |
+| `rules_held_rate`, `path_sound_rate` | Present when the [path is graded](building-an-eval.md#grading-the-path): the share of attempts where every rule held, and the share the path judge called sound |
 
 What each number means is in [question-tasks.md](question-tasks.md#the-numbers).
 
@@ -242,7 +287,9 @@ What each number means is in [question-tasks.md](question-tasks.md#the-numbers).
 
 `records` holds one entry per attempt: the question, the trial number, the arm's answer,
 whether it was correct, and what decided the grade (`abstention`, `exact` or `judge`). Any
-grouping can be rebuilt from them without running the arm again.
+grouping can be rebuilt from them without running the arm again. When the path is graded, a
+record also holds `rules` (every rule, whether it held and why), `rules_held`, `path_sound`,
+`path_why` and `path_judge_cost_usd`.
 
 ## Files optimize adds
 

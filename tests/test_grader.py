@@ -48,7 +48,7 @@ def test_hidden_files_come_from_the_answer_branch_over_what_the_agent_left(repo,
 
 
 def test_a_task_graded_by_command_is_never_sent_to_the_judge(repo, tmp_path, monkeypatch):
-    def fix_it(runner_name, invoke, model, max_turns, cwd, log_path, timeout_minutes=None):
+    def fix_it(runner_name, invoke, model, max_turns, cwd, log_path, timeout_minutes=None, steps=None):
         (cwd / "a.py").write_text("x = 2\n")
         return {"seconds": 1, "cost_usd": None, "turns": None}
     monkeypatch.setattr(runner, "run", fix_it)

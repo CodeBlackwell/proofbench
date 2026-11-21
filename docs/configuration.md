@@ -46,6 +46,7 @@ checked when the file is loaded.
 | `trials` | `1` | question only | How many times each question is asked |
 | `judge_input_limit_kb` | `200` | both | The largest prompt a judge may be sent. Over it, the run stops and names the task |
 | `classes` | none | both | The kinds of answer the [coverage gate](building-an-eval.md#the-gates) counts |
+| `path` | none | both | How the steps the system took are graded: `rules`, a `judge` rubric, or both. See [Grading the path](building-an-eval.md#grading-the-path) |
 
 Notes:
 
@@ -181,6 +182,9 @@ Each of these stops the run before any agent or judge is started:
 - A repo corpus mixes tasks that have a `check` with tasks that do not, or a task lists
   `hidden` paths and has no `check`.
 - `judge_input_limit_kb` is not a number above 0, or `classes` is not a list of strings.
+- `path` holds neither `rules` nor `judge`, a rule is not one of the five kinds or has a value
+  it cannot use, a rule script is missing or not executable, or the path's `judge` file does
+  not exist.
 - On a question corpus: the runner file is missing or not executable, or a question file does
   not exist.
 

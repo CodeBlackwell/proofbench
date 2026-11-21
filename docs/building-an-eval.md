@@ -12,6 +12,7 @@ eval passes, the controls one of them grades, and the commands that decide each 
 - [The gates](#the-gates)
 - [Controls](#controls)
 - [The command grader](#the-command-grader)
+- [Grading the path](#grading-the-path)
 - [The state file](#the-state-file)
 - [Running an unchecked eval](#running-an-unchecked-eval)
 
@@ -50,6 +51,8 @@ Work through them in this order.
 
 - A question corpus passes when the arm returns a valid result object.
 - A repo corpus passes when the agent leaves a diff.
+- When the eval grades the path, the adapter must leave a step log as well. See
+  [Grading the path](#grading-the-path).
 
 **`coverage`**
 
@@ -139,6 +142,83 @@ corpus:
 - No judge is asked, so a corpus graded only by command needs no `judge` key.
 - A corpus uses one grader. Tasks with `check` and tasks without cannot share a config.
 
+## Grading the path
+
+An outcome grade says whether the result was right. A path grade says how the system got
+there: which tools it called, in what order, and what came back. It is optional, and it never
+changes the outcome grade.
+
+**The step log**
+
+- Your adapter writes one line per tool call to the file named in the `PROOFBENCH_STEPS`
+  environment variable: `{"tool": "search", "input": {}, "result": "..."}`.
+- The built-in `claude` runner needs no adapter. Its steps are read from the CLI's stream.
+- The format is in [io-contracts.md](io-contracts.md#the-step-log).
+
+**The config**
+
+```yaml
+path:
+  rules:
+    - called: list_findings                   # called at least once
+    - never_called: delete_capture            # never called
+    - before: [list_findings, get_detection]  # no get_detection without a list_findings ahead of it
+    - max_steps: 8                            # at most this many steps
+    - script: rules/grounded.py               # whatever the four above cannot say
+  judge: path-judge.md                        # a rubric a judge reads the path against
+```
+
+- Give `rules`, `judge`, or both. The rules apply to every task.
+- A script is run as `SCRIPT STEPS_FILE ANSWER_FILE`. Exit 0 means the rule held and exit 1
+  means it did not. Its first line of output is kept as the reason. Any other exit code
+  stops the run, because a rule that crashed has not failed anyone.
+- The path judge is shown the task, the step log and the recorded good path. It is never
+  shown the system's answer. A check that ties the answer to the path belongs in a script.
+- The path judge replies with `{"sound": 1, "why": "..."}`, or `0`. It is asked by
+  `judge_model`.
+
+**What a run reports**
+
+| Question corpus | Repo corpus | Meaning |
+|---|---|---|
+| `rules_held_rate` | `macro_rules_held` | Share of attempts where every rule held |
+| `path_sound_rate` | `macro_path_sound` | Share of attempts the path judge called sound |
+
+**Recorded good paths**
+
+- Keep one real path per task that you accept as good, in `paths/TASK/`.
+- Copy two files there from that task's folder in a run: `steps.jsonl`, and the answer file
+  (`answer.json` for a question, `agent.diff` for a repo task).
+- The path judge is shown the recorded steps as an example. A path is not scored by how
+  closely it matches.
+- A recorded path must itself pass every rule. The `good` control checks that.
+
+**Path controls**
+
+`proofbench controls` builds these from each recorded path:
+
+| Control | What it is | Must be graded |
+|---|---|---|
+| `good` | The recorded path as it was | Every rule held, and sound |
+| `empty` | No steps | Not sound. Rules not held, when there is a `called` rule |
+| `removed` | The path without the tool your first `called` rule names | Rules not held, and not sound |
+| `reordered` | The path with the first tool of your first `before` rule moved to the end | Rules not held, and not sound |
+
+- `removed` and `reordered` are built only when the config has that rule and the recorded
+  path calls those tools. Every prediction follows from a rule you declared.
+- Each control is a folder, `controls/TASK/NAME.path/`, holding a `steps.jsonl` and the
+  answer file.
+- A control for a script rule or for the rubric is written by hand, in the same shape, with
+  a line in `predictions.json` such as `{"TASK/invented-number.path": {"rules_held": [0, 0]}}`.
+- An eval with a `path` key and no path control fails the `controls` gate.
+
+**The order, with a path**
+
+- Recorded paths come from a run, so check `headroom` before `controls`. Its run folder
+  holds a step log and an answer file for every task.
+- A change under the `path` key turns `controls` stale and leaves the other three passed.
+  Adding or removing the key itself turns `adapter` stale too.
+
 ## The state file
 
 - `gates.json` sits beside the config. Only `proofbench check` writes it.
@@ -147,13 +227,15 @@ corpus:
 
 | Gate | Its hash covers |
 |---|---|
-| `adapter` | The config and the runner file |
-| `coverage` | The config and the tasks |
-| `controls` | The config, the tasks, the judge prompt and the `controls` folder |
-| `headroom` | The config, the runner file, the tasks and the judge prompt |
+| `adapter` | The config without its `path` key, whether there is one, and the runner file |
+| `coverage` | The config without its `path` key, and the tasks |
+| `controls` | The config, the tasks, the judge prompt and the `controls` folder. With a path: the rubric, the rule scripts and the `paths` folder too |
+| `headroom` | The config without its `path` key, the runner file, the tasks and the judge prompt |
 
 - When any covered file changes, the gate reads as **stale**, and a stale gate does not count
   as passed.
+- The config is covered as it parses. Rewording a comment or reordering its keys leaves
+  every gate as it was.
 - For a repo corpus, "the tasks" means the commits both branches point at.
 - The system you are evaluating is covered by no gate, so changing it never makes the eval
   stale.

@@ -4,9 +4,11 @@ A built-in name (``claude``) maps to a command builder. Any other value is treat
 a path to an executable. A repo task invokes it as ``<runner> <invoke> <model>``; a question
 task hands it one question on stdin and reads one result object back."""
 import json
+import os
 import time
 from pathlib import Path
 
+from . import steps as steplog
 from .util import die, spawn
 
 _NO_META = {"cost_usd": None, "turns": None, "tokens_in": None, "tokens_out": None}
@@ -23,40 +25,54 @@ _NEEDED = {"answer_ids": list, "abstained": bool, "tokens_in": (int, float),
 _ASKED = ("id", "text")
 
 
-def _claude(invoke, model, max_turns):
-    return ["claude", "-p", invoke, "--model", model,
-            "--dangerously-skip-permissions", "--output-format", "json",
-            "--max-turns", str(max_turns)]
+def _claude(invoke, model, max_turns, is_logged):
+    """The stream is asked for only when the path is graded: it holds every tool call, where
+    the one object of the plain format holds none."""
+    shape = ["stream-json", "--verbose"] if is_logged else ["json"]
+    return ["claude", "-p", invoke, "--model", model, "--dangerously-skip-permissions",
+            "--output-format", *shape, "--max-turns", str(max_turns)]
 
 
 BUILTINS = {"claude": _claude}
 
 
 def _claude_meta(stdout):
-    """Pull cost, turns and token usage from a ``claude --output-format json`` envelope.
+    """Pull cost, turns and token usage from claude's result object: the one line the plain
+    format prints, and one event among many in a stream.
     Observability for the repo task, so this never dies: a custom runner or malformed
     envelope yields None and the wall-clock seconds still stand. The question task does not
     read this; it takes its token counts from the arm's own result object, which it requires."""
-    try:
-        envelope = json.loads(stdout[stdout.index("{"):stdout.rindex("}") + 1])
-    except (ValueError, json.JSONDecodeError):
+    envelope = next((event for event in steplog.events(stdout) if "total_cost_usd" in event), None)
+    if envelope is None:
         return dict(_NO_META)
     usage = envelope.get("usage") or {}
     return {"cost_usd": envelope.get("total_cost_usd"), "turns": envelope.get("num_turns"),
             "tokens_in": usage.get("input_tokens"), "tokens_out": usage.get("output_tokens")}
 
 
-def run(runner, invoke, model, max_turns, cwd, log_path, timeout_minutes=None):
+def _env(steps):
+    """Where an adapter writes its step log, when the eval grades the path. The path is made
+    absolute because an adapter may change directory before it writes, as tenex's does."""
+    return {**os.environ, steplog.ENV: str(Path(steps).resolve())} if steps else None
+
+
+def run(runner, invoke, model, max_turns, cwd, log_path, timeout_minutes=None, steps=None):
     """Execute one headless attempt in ``cwd``; capture all output to ``log_path`` and
     return its ``{seconds, cost_usd, turns, tokens_in, tokens_out}``.
 
     The agent's exit status is advisory: what gets graded is the artifact it leaves
-    behind (see capture), never the agent's own claim of success."""
-    argv = BUILTINS[runner](invoke, model, max_turns) if runner in BUILTINS \
+    behind (see capture), never the agent's own claim of success.
+
+    ``steps`` is where the step log goes when the path is graded. The built-in runner's is
+    read from its stream; an executable is told the file and writes its own."""
+    is_builtin = runner in BUILTINS
+    argv = BUILTINS[runner](invoke, model, max_turns, bool(steps)) if is_builtin \
         else [runner, invoke, model]
     start = time.time()
-    proc = spawn(argv, timeout_minutes, cwd=cwd)
+    proc = spawn(argv, timeout_minutes, cwd=cwd, env=None if is_builtin else _env(steps))
     Path(log_path).write_text(proc.stdout + proc.stderr)
+    if steps and is_builtin:
+        steplog.write(steps, steplog.from_claude(proc.stdout))
     meta = _claude_meta(proc.stdout) if runner in BUILTINS else dict(_NO_META)
     return {"seconds": round(time.time() - start, 1), **meta}
 
@@ -66,7 +82,7 @@ def _is(value, kind):
     return isinstance(value, kind) and (kind is bool or not isinstance(value, bool))
 
 
-def ask(arm, model, question, log_path, runner_args=(), timeout_minutes=None):
+def ask(arm, model, question, log_path, runner_args=(), timeout_minutes=None, steps=None):
     """Drive one question through an arm executable: the question's id and text go in on stdin,
     one result object comes back on stdout. Unlike a repo task, the arm's exit status is not
     advisory: there is no artifact left behind to grade, so a failed arm has to be fatal.
@@ -76,7 +92,7 @@ def ask(arm, model, question, log_path, runner_args=(), timeout_minutes=None):
     off the config is what makes the run reproducible from the config alone."""
     asked = {field: question[field] for field in _ASKED}
     proc = spawn([str(arm), "--model", model, *runner_args], timeout_minutes,
-                 input=json.dumps(asked))
+                 input=json.dumps(asked), env=_env(steps))
     Path(log_path).write_text(proc.stdout + proc.stderr)
     if proc.returncode != 0:
         die(f"arm exited {proc.returncode} on {question['id']}: {proc.stderr.strip()[:300]}")

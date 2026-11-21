@@ -8,15 +8,19 @@ import json
 import time
 from pathlib import Path
 
-from . import capture, controls, engine, question, runner
+import yaml
+
+from . import capture, controls, engine, path_controls, paths, question, runner, steps
 from .util import HarnessError, die, log, sum_reported
 
 STATE = "gates.json"
 # What each gate's hash covers. The system under test is in none of them: it changes all the
-# time, and an eval that went stale whenever its subject did could never be used on it.
-COVERS = {"adapter": ("config", "runner"),
+# time, and an eval that went stale whenever its subject did could never be used on it. The
+# `path` key is covered apart from the rest of the config: how the path is graded says nothing
+# about coverage or headroom, and the adapter gate depends only on whether it is graded at all.
+COVERS = {"adapter": ("config", "has_path", "runner"),
           "coverage": ("config", "tasks"),
-          "controls": ("config", "tasks", "judge", "controls"),
+          "controls": ("config", "path", "path_files", "tasks", "judge", "controls"),
           "headroom": ("config", "runner", "tasks", "judge")}
 GATES = tuple(COVERS)
 
@@ -28,23 +32,44 @@ def _tasks(cfg):
             for ref in (task.default_branch, task.answer_branch)]
 
 
-def _part(cfg, part):
-    if part == "config":
-        return [cfg.file.read_bytes()]
-    if part == "runner":
-        return [Path(cfg.runner).read_bytes() if Path(cfg.runner).is_file() else cfg.runner.encode()]
-    if part == "judge":
-        return [(cfg.judge_prompt or "").encode()]
-    if part == "tasks":
-        return _tasks(cfg)
-    found = sorted(path for path in controls.folder(cfg).rglob("*") if path.is_file())
-    return [str(path.relative_to(cfg.root)).encode() + path.read_bytes() for path in found]
+def _files(folder):
+    found = sorted(path for path in folder.rglob("*") if path.is_file())
+    return [str(path.relative_to(folder)).encode() + path.read_bytes() for path in found]
+
+
+def _keys(cfg, is_covered):
+    """The config as it parses, so a reworded comment turns no gate stale."""
+    raw = yaml.safe_load(cfg.file.read_text())
+    kept = {key: value for key, value in raw.items() if is_covered(key)}
+    return [json.dumps(kept, sort_keys=True).encode()]
+
+
+def _path_files(cfg):
+    """What the path graders read beside the config: the rubric, each rule script, and the
+    recorded paths the judge is shown and the mechanical controls are built from."""
+    if not cfg.path:
+        return []
+    scripts = [Path(value).read_bytes() for kind, value in cfg.path.rules if kind == "script"]
+    return [(cfg.path.judge_prompt or "").encode(), *scripts,
+            *_files(cfg.root / paths.RECORDED)]
+
+
+def _runner(cfg):
+    return [Path(cfg.runner).read_bytes() if Path(cfg.runner).is_file() else cfg.runner.encode()]
+
+
+PARTS = {"config": lambda cfg: _keys(cfg, lambda key: key != "path"),
+         "path": lambda cfg: _keys(cfg, lambda key: key == "path"),
+         "has_path": lambda cfg: [str(bool(cfg.path)).encode()],
+         "path_files": _path_files, "runner": _runner, "tasks": _tasks,
+         "judge": lambda cfg: [(cfg.judge_prompt or "").encode()],
+         "controls": lambda cfg: _files(controls.folder(cfg))}
 
 
 def _hash(cfg, gate):
     digest = hashlib.sha256()
     for part in COVERS[gate]:
-        for chunk in _part(cfg, part):
+        for chunk in PARTS[part](cfg):
             digest.update(len(chunk).to_bytes(8, "big") + chunk)
     return digest.hexdigest()
 
@@ -76,6 +101,12 @@ def refuse_unchecked(cfg):
             f"`proofbench check GATE` for each, or pass --unchecked to run it anyway")
 
 
+def _logged(cfg, run_dir):
+    """An eval that grades the path needs the adapter's step log as much as its result, and a
+    log that is missing stops the gate here."""
+    return f", and {len(steps.read(run_dir / steps.FILE))} steps" if cfg.path else ""
+
+
 def _adapter(cfg, run_dir):
     """One task through the adapter on the cheapest model: it starts, and a result comes back."""
     model = cfg.models[-1]
@@ -83,14 +114,15 @@ def _adapter(cfg, run_dir):
     if cfg.kind == "question":
         asked = question.read(cfg)[0]
         result = runner.ask(cfg.runner, model, asked, run_dir / "run.log", cfg.runner_args,
-                            cfg.timeout_minutes)
-        return True, result.get("cost_usd"), f"{asked['id']} came back with a result"
+                            cfg.timeout_minutes, run_dir / steps.FILE if cfg.path else None)
+        return (True, result.get("cost_usd"),
+                f"{asked['id']} came back with a result" + _logged(cfg, run_dir))
     task = cfg.corpus[0]
     baseline, _ = capture.ground_truth(task.path, task.default_branch, task.answer_branch, task.ignore)
     _, meta, agent_diff, _ = engine.attempt(cfg, task, model, baseline, run_dir)
     changed = bool(agent_diff.strip())
-    return changed, meta["cost_usd"], f"{task.name}: " + ("a diff was captured" if changed
-                                                         else "the agent changed nothing")
+    said = "a diff was captured" if changed else "the agent changed nothing"
+    return changed, meta["cost_usd"], f"{task.name}: {said}" + _logged(cfg, run_dir)
 
 
 def _coverage(cfg, run_dir):
@@ -112,7 +144,8 @@ def _held(graded, predicted):
 
 
 def _controls(cfg, run_dir):
-    """Every control scored inside its predicted range, and none left without a prediction."""
+    """Every control scored inside its predicted range, and none left without a prediction.
+    An eval that grades the path has path controls too: its path graders are graders."""
     predictions = json.loads((controls.folder(cfg) / "predictions.json").read_text())
     graded = controls.grade(cfg)
     run_dir.mkdir(parents=True)
@@ -121,15 +154,19 @@ def _controls(cfg, run_dir):
     missed = sorted(key for key in set(predictions) & set(graded)
                     if not _held(graded[key], predictions[key]))
     cost = sum_reported(one.get("judge_cost_usd") for one in graded.values())
-    detail = f"{len(graded)} controls; outside their prediction: {missed}; unpaired: {unpaired}"
-    return bool(graded) and not missed and not unpaired, cost, detail
+    of_paths = sum(key.endswith(path_controls.SUFFIX) for key in graded)
+    detail = (f"{len(graded)} controls, {of_paths} of them for the path; "
+              f"outside their prediction: {missed}; unpaired: {unpaired}")
+    is_covered = bool(graded) and (of_paths or not cfg.path)
+    return bool(is_covered) and not missed and not unpaired, cost, detail
 
 
 def _spent(leg):
     """What a leg cost, agents and judge together, as far as either was reported."""
     used = leg.get("resources", {})
     return sum_reported([leg.get("cost_usd"), used.get("cost_usd"), used.get("judge_cost_usd"),
-                         *(record.get("judge_cost_usd") for record in leg.get("records", []))])
+                         *(record.get(name) for record in leg.get("records", [])
+                           for name in ("judge_cost_usd", "path_judge_cost_usd"))])
 
 
 def _headroom(cfg, run_dir):

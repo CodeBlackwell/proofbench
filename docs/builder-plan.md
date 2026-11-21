@@ -123,8 +123,8 @@ evals/<name>/
 
 ## Proposals still to review
 
-These are the author's proposals, not the owner's decisions. Review them before they are
-built.
+These were the author's proposals. The owner approved them as written on 2026-11-21. The
+proposals made while building Phase 2 are listed under that phase and are still to review.
 
 - **Commands:** `proofbench controls` builds the mechanical controls, `proofbench check GATE`
   runs one gate and records it, `proofbench status` prints every gate and costs nothing.
@@ -200,6 +200,52 @@ building it:
   `run` executes it without the override.
 
 ### Phase 2: the path (0.7.0)
+
+Built on 2026-11-21 and not released. tenex's eval passed all four gates again the same day,
+now with a path: 218 of 218 controls graded as predicted, 34 of them for the path. The phase
+cost about $7 at API prices, all of it on the subscription. tenex's second pass:
+
+- **Headroom, with step logs:** Sonnet scored 31 of 42 (0.738) for $3.39.
+- **Every attempt held every rule,** the 11 wrong answers included. The grounding rule
+  checked 380 numbers across the 42 answers and found none invented. tenex's console reads
+  the right data and then names the wrong thing: its misses are not grounding failures, and
+  the path rules cannot see them.
+- **The owner approved** two fixed rules beside the grounding rule (`called: list_findings`,
+  and `before: [list_findings, get_detection]`), the path rubric, eight recorded paths (two
+  per class) and seven hand-written path controls.
+- **The controls gate cost $2.48,** after a pilot of 11 path controls that graded 11 as
+  predicted. The path judge costs about $0.06 a control, twice the estimate: its prompt
+  holds the path and the recorded path, each 10 to 20 KB.
+- **No real attempt has been read by the path judge yet.** The headroom run was made with
+  the rules alone, so the judge was not paid for before it had been checked. The first
+  checked `run` produces tenex's `path_sound_rate`.
+- **The grounding rule is weak on small whole numbers,** which nearly always appear
+  somewhere in a result, and it takes a number from any result as grounding for any claim.
+
+These are the author's choices, still to review:
+
+- **The `path` key** holds `rules`, a `judge` rubric, or both. Rules apply to every task of
+  the eval, not to one task.
+- **`before: [A, B]`** holds when B was never called, or some A came ahead of the first B.
+- **The path judge rules a path sound or not, 1 or 0.** It is shown the task, the step log
+  and the recorded path, and never the answer. What an answer owes to its path is checked by
+  a script, which is handed both.
+- **A recorded path is a folder,** `paths/TASK/`, holding the step log and the answer file of
+  one real attempt. A path control is the same folder shape under `controls/TASK/NAME.path/`.
+- **The mechanical path controls follow from the declared rules.** `removed` takes out the
+  tool of the first `called` rule and `reordered` turns round the first `before` rule. With
+  no such rule, that control is not built, because nothing says what it should score.
+- **A rule script that exits with anything but 0 or 1 stops the run.**
+- **The stream is asked of `claude` only when the path is graded,** so an eval without a
+  path runs exactly as it did.
+- **A repo runner is told a log file outside the run folder,** which holds the answer diff.
+- **What a gate covers changed.** The config is hashed as it parses, so a comment no longer
+  turns a gate stale. What is under the `path` key is covered by `controls` alone, and
+  `adapter` covers only whether the key is there, so changing how the path is graded does
+  not cost another agent run. Every gate recorded by
+  0.6.0 reads as stale once under 0.7.0.
+- **With a path, `headroom` is checked before `controls`,** because recorded paths come from
+  a full run.
 
 - The step log and the Claude reader.
 - The rule types and the script rule.

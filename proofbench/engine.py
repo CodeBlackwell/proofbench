@@ -3,11 +3,12 @@
 Models run sequentially; tasks within a model run in parallel. Every attempt gets its own
 throwaway clone, so no two attempts share a working tree and the corpus repos are only read."""
 import json
+import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import capture, grader, judge, question, runner
+from . import capture, grader, judge, paths, question, runner, steps
 from .util import die, log, sum_reported
 
 
@@ -30,16 +31,26 @@ def read_readme(work):
     return found[0].read_text(errors="replace") if found else ""
 
 
+def describe(task, readme):
+    """What a task asked, as the path judge is shown it."""
+    return f"{task.invoke}\n\n{readme}"
+
+
 def attempt(cfg, task, model, baseline, out_dir):
     """One agent run in a clone under the system temp directory: outside the corpus repo, which
     holds the answer branch, and outside the run directory, which holds the answer diff. The
     README is the one the baseline commit holds, read before the agent can touch it. A task's
-    check command runs here, after the diff is taken and while the clone still exists."""
+    check command runs here, after the diff is taken and while the clone still exists. The step
+    log is written beside the clone and copied out afterwards: the run directory holds the
+    answer diff, and a runner told where that directory is could read it."""
     with tempfile.TemporaryDirectory(prefix="proofbench-", ignore_cleanup_errors=True) as scratch:
         work = capture.workspace(task.path, task.default_branch, baseline, Path(scratch) / task.name)
         readme = read_readme(work)
+        logged = Path(scratch) / steps.FILE if cfg.path else None
         meta = runner.run(cfg.runner, task.invoke, model, cfg.max_turns, work,
-                          out_dir / "run.log", cfg.timeout_minutes)
+                          out_dir / "run.log", cfg.timeout_minutes, logged)
+        if logged and logged.is_file():
+            shutil.copy(logged, out_dir / steps.FILE)
         agent_diff = capture.capture(work, baseline, task.ignore)
         verdict = grader.run_check(task, work, cfg.timeout_minutes) if task.check else None
         return readme, meta, agent_diff, verdict
@@ -58,7 +69,10 @@ def _run_and_grade(cfg, task, model, gt, out_dir):
         + (f", {meta['turns']} turns" if meta["turns"] else ""))
     (out_dir / "agent.diff").write_text(agent_diff)
     grade, judge_cost = (verdict, None) if verdict else _judge(cfg, task, readme, answer, agent_diff)
-    grade.update(task=task.name, _meta={**meta, "judge_cost_usd": judge_cost})
+    path_grade, path_cost = (paths.grade(cfg, describe(task, readme), task.name, out_dir)
+                             if cfg.path else ({}, None))
+    grade.update(path_grade, task=task.name,
+                 _meta={**meta, "judge_cost_usd": sum_reported([judge_cost, path_cost])})
     if not agent_diff.strip():
         grade["empty_capture"] = True
         log(f"\033[33m[{model}] {task.name}: EMPTY diff: the agent changed nothing, and the "
