@@ -24,6 +24,7 @@ It works for any system you can start with one command and whose result can be c
 - [Commands](#commands)
 - [What a run writes](#what-a-run-writes)
 - [Safety](#safety)
+- [Eval card](#eval-card)
 - [Documentation](#documentation)
 - [License](#license)
 
@@ -211,6 +212,69 @@ shape of each file are in [docs/io-contracts.md](docs/io-contracts.md).
   of your `CLAUDE.md`, hooks, plugins or MCP servers.
 - **`optimize` edits your subject file.** The original is put back unless the rewrite is kept,
   including when the run crashes or is interrupted.
+
+## Eval card
+
+What has been measured about proofbench itself, and what has not. Measured on 2026-11-21, on
+the code now on `main`. Costs are API prices; the runs were paid through a Claude
+subscription.
+
+**The claim under test:** an eval that has passed proofbench's gates can be trusted, and the
+`/proofbench` skill builds one without breaking its own rules.
+
+**What was measured**
+
+| What | How | Result |
+|---|---|---|
+| The code | Unit tests on Python 3.10 to 3.13, in CI | 321 pass |
+| Graders, against results with a known right score | Controls predicted before grading, on three evals of two real systems | 362 of 362 graded as predicted |
+| The path judge | 34 of those controls: recorded paths, ruined paths, hand-written cases | 34 of 34, on two separate runs |
+| The builder, on Opus | `/proofbench` run unaided on three real targets, its eval folder checked by a held-back script | 3 of 3 right, after one ruling by the owner |
+| The builder's hard rules | Three rule scripts over each Opus session's step log: never write `gates.json`, never use `--unchecked`, never start a paid gate unapproved | Held in 3 of 3 sessions |
+| The builder, on Sonnet | One target. Its folder was written but not graded | Stopped for a yes before its first paid step |
+
+- **The two systems:** tenex, a security console agent, and Triage Desk, an agent that
+  classifies failed CI tests.
+- **The ruling:** on one target the builder wrote nothing and put three gaps to the owner
+  first. The check wanted a folder. The owner ruled that asking was right.
+- **What the gates refused on real evals:** an answer key a model wrote, which the strongest
+  model scored 100% on; a set where only one class had real cases; and an eval whose answers
+  the system could not reach, on which the strongest model scored 0 of 21.
+
+**What it cost**
+
+| Step | Cost |
+|---|---|
+| All four gates on tenex's eval: 42 questions, 218 controls, a judge and a path judge | $7.98 |
+| All four gates on a 25-question eval graded by exact match | $4.45 |
+| The builder's own eval: three Opus sessions and one Sonnet session | $3.73 |
+
+**What has not been measured**
+
+- **Judges against a person.** A judge is held to predictions on controls. No judge verdict
+  on a real attempt has been compared with human labels.
+- **The gates as a detector.** They have not been scored on a set of deliberately broken
+  evals. The cases above are the ones met by accident, and the 0 of 21 passed the headroom
+  gate until a floor was added because of it.
+- **Noise.** The same model scored 31 of 42 and then 27 of 42 on tenex with nothing changed.
+  proofbench reports no interval.
+- **A builder worse than Opus.** Opus passes all three targets, so the builder's eval fails
+  proofbench's own headroom rule and cannot yet tell a good builder from a better one. Its
+  controls gate has not passed.
+- **`/eval-docket`.** One short trial of its first pass. Its second pass has never been run.
+
+**Known limits**
+
+- **A system that rightly declines to act cannot be graded on a repo task.** Only its diff
+  and its step log are graded, and declining leaves neither.
+- **A script rule can raise false alarms.** tenex's grounding rule flagged 3 of 42 answers,
+  and all 3 were sound: two wrote a number with a thousands separator.
+- **This card is the author's report.** tenex's eval sits on an unpushed branch and Triage
+  Desk is private, so most of these numbers cannot be reproduced from this repository. The
+  free checks can: `uv run pytest`, and the demos under [Try the demos](#try-the-demos).
+- **proofbench checked proofbench.** The builder's eval was gated by the code under test.
+
+The record behind each line is in [docs/builder-plan.md](docs/builder-plan.md).
 
 ## Documentation
 

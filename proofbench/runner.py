@@ -43,9 +43,10 @@ def _claude_meta(stdout):
     yields None and the wall-clock seconds still stand. An executable runner that starts
     claude and prints what it printed has its cost read the same way as the built-in one. The question task does not
     read this; it takes its token counts from the arm's own result object, which it requires."""
-    envelope = next((event for event in steplog.events(stdout) if "total_cost_usd" in event), None)
-    if envelope is None:
+    found = [event for event in steplog.events(stdout) if "total_cost_usd" in event]
+    if not found:
         return dict(_NO_META)
+    envelope = found[-1]  # a session woken again prints another, and its cost is the running total
     usage = envelope.get("usage") or {}
     return {"cost_usd": envelope.get("total_cost_usd"), "turns": envelope.get("num_turns"),
             "tokens_in": usage.get("input_tokens"), "tokens_out": usage.get("output_tokens")}

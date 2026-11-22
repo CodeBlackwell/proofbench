@@ -121,6 +121,7 @@ def test_a_runner_that_prints_what_claude_printed_has_its_cost_read(tmp_path):
     """An adapter that starts claude is costed as the built-in runner is."""
     agent = tmp_path / "agent.sh"
     agent.write_text("#!/bin/sh\necho starting\n"
+                     "echo '{\"type\": \"result\", \"total_cost_usd\": 0.2, \"num_turns\": 2}'\n"
                      "echo '{\"type\": \"result\", \"total_cost_usd\": 0.25, \"num_turns\": 3}'\n")
     agent.chmod(0o755)
     meta = runner.run(str(agent), "go", "weak", 5, tmp_path, tmp_path / "run.log")

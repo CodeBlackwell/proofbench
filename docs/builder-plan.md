@@ -329,8 +329,33 @@ the owner. What the trial showed:
 - **It found two gaps, both fixed the same day.** The controls gate graded no hand-written
   control on a task graded by command, and the cost of an executable repo runner was never
   read.
-- **Still open:** its three tasks would bring a private repo's material into this public
-  one, three tasks make a coarse headroom score, and it did not consider scoring the gates
+- **A live run of the fixes found a third gap,** also fixed: a repo eval could not name an
+  adapter in its own folder, because the runner starts inside the clone.
+- **The eval was then built and run,** in `evals/builder/`, uncommitted: two tasks come from
+  a private repo. Building it cost about $11 of Opus. Its gates cost $3.73 against an
+  estimate of $12 to $30.
+- **Sonnet built tenex's eval unaided for $0.43,** and stopped for a yes before its first
+  paid step. A notification arrived while it waited, and it said that was not an answer.
+- **Opus scored 2 of 3 on headroom, and every session kept all three hard rules.** It built
+  tenex's eval and Triage Desk's owner eval, where it left out every model-written question
+  without being told to.
+- **The task it failed is an ambiguous one.** On the one-class target the check wanted a
+  folder that declared both classes and left one empty. The builder wrote nothing and put
+  three facts to the owner first: no real case of the second class exists, four of the ten
+  real cases are not failed tests, and the answer cannot be reached without the history
+  tool. That is the unreachable answer the eval's author believed no builder could notice
+  before a paid gate.
+- **Ruled by the owner, 2026-11-21: stopping to ask was the right result.** The task's
+  expected outcome was written by a model and was wrong. Under the ruling Opus scored 3 of
+  3, so the eval is too easy for it and its recorded headroom pass does not stand.
+- **The ruling cannot be put into effect by command.** The right result left no diff, and a
+  task graded by command must fail on its starting state, which is also no diff. Nothing
+  proofbench grades today holds a session's closing message: a rule script is handed the
+  step log and the diff. Grading "it stopped and asked the right things" needs that message.
+- **A builder cannot find the plugin's docs.** The skill says the formats are in the
+  plugin's docs and names no path, so the session searched the whole disk for them.
+- **Still open:** three tasks make a coarse headroom score, counting the ambiguous task as
+  right would make it 3 of 3 and fail headroom, and nobody has tried scoring the gates
   themselves as a classifier, which costs almost nothing.
 
 ## Left out of v1
