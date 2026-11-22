@@ -85,6 +85,7 @@ Each line is a decision the owner made. A change to one is a change to this file
 - **Second target:** triage-desk, rebuilt with the builder and compared with its hand-built
   eval.
 - **Releases:** 0.6.0 for outcomes, 0.7.0 for the path, 1.0.0 after the second target.
+  The second target's work went out as 0.8.0 on 2026-11-22: the owner held 1.0.0 back.
 
 ## The eval folder
 
@@ -262,9 +263,10 @@ These are the author's choices, still to review:
 - **Done when:** tenex's eval grades both the answer and the path, and the path judge has
   passed its controls.
 
-### Phase 3: the second target (1.0.0)
+### Phase 3: the second target (0.8.0)
 
-Built on 2026-11-21 and not released. Triage Desk carries two evals the builder produced,
+Built on 2026-11-21 and released as 0.8.0 the next day, with `/eval-docket` and the fixes
+from the builder's run on itself. Triage Desk carries two evals the builder produced,
 `evals/owner/` and `evals/intermittent/`, on the unpushed branch `proofbench-eval`. The
 owner eval passes all four gates. The intermittent eval passes three and has not passed
 headroom. What the second system showed:

@@ -216,7 +216,7 @@ shape of each file are in [docs/io-contracts.md](docs/io-contracts.md).
 ## Eval card
 
 What has been measured about proofbench itself, and what has not. Measured on 2026-11-21, on
-the code now on `main`. Costs are API prices; the runs were paid through a Claude
+the code released as 0.8.0. Costs are API prices; the runs were paid through a Claude
 subscription.
 
 **The claim under test:** an eval that has passed proofbench's gates can be trusted, and the
